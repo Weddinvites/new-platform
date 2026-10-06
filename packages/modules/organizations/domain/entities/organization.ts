@@ -14,7 +14,11 @@ export type OrganizationProps = {
   secondaryColor?: string | null;
   /** STORY-003-006 — Organization Settings. Nullable; unset until explicitly configured. */
   supportContactEmail?: string | null;
+  /** STORY-003-004 — Activate / Suspend. Defaults to ACTIVE when unset. */
+  organizationStatus?: OrganizationStatus;
 };
+
+export type OrganizationStatus = "ACTIVE" | "SUSPENDED";
 
 /**
  * Organization (MASTER_SPEC §17/§26.1): the platform's tenant/business/
@@ -33,6 +37,7 @@ export class Organization {
   readonly primaryColor: string | null;
   readonly secondaryColor: string | null;
   readonly supportContactEmail: string | null;
+  readonly organizationStatus: OrganizationStatus;
 
   private constructor(props: OrganizationProps) {
     this.id = props.id;
@@ -45,6 +50,16 @@ export class Organization {
     this.primaryColor = props.primaryColor ?? null;
     this.secondaryColor = props.secondaryColor ?? null;
     this.supportContactEmail = props.supportContactEmail ?? null;
+    this.organizationStatus = props.organizationStatus ?? "ACTIVE";
+  }
+
+  /**
+   * STORY-003-004 — a SUSPENDED organization is denied by every
+   * organization-scoped endpoint except activation (API_SPEC.md §22
+   * "Enforcement of Organization Status").
+   */
+  isSuspended(): boolean {
+    return this.organizationStatus === "SUSPENDED";
   }
 
   /**

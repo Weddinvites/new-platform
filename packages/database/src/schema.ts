@@ -1,4 +1,13 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * Organization types per MASTER_SPEC §17. SYSTEM is the platform's own
@@ -18,6 +27,14 @@ export const organizations = pgTable("organizations", {
   secondaryColor: text("secondary_color"),
   /** STORY-003-006 — Organization Settings. Nullable; unset until explicitly configured. */
   supportContactEmail: text("support_contact_email"),
+  /**
+   * STORY-003-004 — Activate / Suspend Organization. A SUSPENDED organization
+   * is denied (ORGANIZATION_SUSPENDED) by every organization-scoped endpoint
+   * except activation. Not null; existing rows default to ACTIVE.
+   */
+  organizationStatus: text("organization_status", { enum: ["ACTIVE", "SUSPENDED"] })
+    .notNull()
+    .default("ACTIVE"),
 });
 
 /**
@@ -93,4 +110,28 @@ export const userInvitations = pgTable(
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
   },
   (table) => [index("user_invitations_org_email_idx").on(table.organizationId, table.email)],
+);
+
+/**
+ * STORY-003-004 — Administrative audit trail (ADR-007 "Audit Trail"). Written
+ * only by the Audit module, only in INSERT form; UPDATE and DELETE are
+ * rejected by a database trigger (supabase/migrations/20261006120100). No
+ * foreign keys, so records outlive the entities they describe.
+ */
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    userId: uuid("user_id").notNull(),
+    organizationId: uuid("organization_id").notNull(),
+    action: text("action").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    result: text("result", { enum: ["SUCCESS", "FAILURE"] }).notNull(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => [
+    index("audit_logs_organization_occurred_idx").on(table.organizationId, table.occurredAt),
+  ],
 );

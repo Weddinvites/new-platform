@@ -388,7 +388,7 @@ Allow an Organization's OWNER to update its `display_name`.
 
 - Organization Settings (retrieve/update) and Flow 13's deferred default-settings initialization — reserved for STORY-003-006, with its own future contract audit, persistence decision, and schema definition. Not silently dropped.
 - White Label, branding, Custom Domain — STORY-003-005.
-- Organization status changes (Activate/Suspend) — STORY-003-004 (reserved, blocked on an undefined Platform-administrator actor).
+- Organization status changes (Activate/Suspend) — STORY-003-004 (decided; pending implementation authorization).
 - Subscription, billing, plans, API keys — out of Organizations' ownership (ADR-011).
 - Any new RBAC role or permission.
 - Any schema migration; no `updated_at` field.
@@ -446,7 +446,7 @@ No `updated_at` field, migration, settings table/columns, versioning, or concurr
 
 1. Authorize via Identity's `verifyOwnerMembership`.
 2. Fetch the organization.
-3. If `organization_type === "SYSTEM"`, normalize the result to the same `RESOURCE_NOT_FOUND` response as step 1's failure — no distinguishable code or shape. Excluded until STORY-003-004 defines a Platform-administrator authorization model. This is defense-in-depth: no flow in this specification ever creates a documented OWNER membership in the SYSTEM organization.
+3. If `organization_type === "SYSTEM"`, normalize the result to the same `RESOURCE_NOT_FOUND` response as step 1's failure — no distinguishable code or shape. Excluded until STORY-003-004 is implemented; its decided platform-privilege model (SYSTEM membership with OWNER or ADMIN) is recorded there. This is defense-in-depth: no flow in this specification ever creates a documented OWNER membership in the SYSTEM organization.
 
 ### Identity Cross-Module Contract
 
@@ -515,17 +515,61 @@ EPIC-002, Stories 002-001 through 002-008, STORY-003-001, and STORY-003-002 rema
 
 ---
 
-## STORY-003-004 — Reserved (Excluded)
+## STORY-003-004 — Activate / Suspend Organization
 
-Intentionally reserved and excluded from this Epic's implementation sequence. Covers Activate Organization / Suspend Organization (API_SPEC.md §22). A dedicated contract audit confirmed this Story is blocked on three independent, undefined gaps — not a single narrow item:
+**Status:** Contract Applied (API_SPEC.md §22). Implementation partially complete; blocked on one Identity addition (see "Implementation State").
 
-1. **Undefined actor.** API_SPEC.md §22's general Authorization section states "Platform administrators may manage any organization," but "Platform administrator" appears nowhere else in the documentation set. MASTER_SPEC §18's canonical, change-controlled role vocabulary (OWNER, ADMIN, MEMBER, CLIENT, plus the explicitly-named-but-not-MVP future roles Designer/Sales/Support/Finance) has no room for it, and §18 explicitly names "Organization Administrator" as an example of an *invalid* role name. Inventing a new role or actor is not permitted without MASTER_SPEC itself being amended through its own stated change-control process — a product/governance decision, not an engineering one.
-2. **Undefined persisted state.** The `organizations` table (packages/database/src/schema.ts) has no status/enabled/suspended column. MASTER_SPEC §27.2/§28.2 name "Organization Status" as an Organizations-context responsibility, but — like "Organization Settings" before its own resolution (STORY-003-006) — it is a bare, never-expanded label with no enum, field, or lifecycle defined anywhere.
-3. **No user flow.** USER_FLOWS.md has an Activate/Suspend flow only at the User level (STORY-002-007, already closed under EPIC-002, under a materially different actor model — OWNER-of-the-target-organization, not a platform-wide actor). No Organization-level Activate/Suspend flow — preconditions, main flow, alternative flows, or postconditions — exists anywhere.
+The three gaps that previously blocked this Story are resolved by product decisions, recorded below. Nothing in this section is implemented yet.
 
-A structurally different resolution path was identified but not recommended or decided: treating "Platform administrator" as an OWNER membership in the existing SYSTEM organization (MASTER_SPEC §17/§26.2a) would reuse the canonical role vocabulary rather than inventing a new one, but it still requires designing a bootstrap mechanism (no flow currently ever creates an OWNER membership in SYSTEM), would be the first authorization check in this codebase verifying membership in a different, fixed organization than the one being acted on, and does not by itself resolve gaps 2 or 3 above.
+### Approved decisions
 
-Do not implement until all three gaps are resolved by a future product/Epic/ADR decision. This ID is not reassigned to another capability.
+1. **Platform-privileged actor (no new role).** A caller is platform-privileged if they hold an `ACTIVE` membership in the SYSTEM organization with role OWNER or ADMIN. MEMBER and CLIENT in SYSTEM have no platform privilege. Grounded in MASTER_SPEC §17 ("usuarios internos de AllInvites con privilegios explícitos"; SYSTEM = "Agencia 0") and the closed role list in MASTER_SPEC §18.
+2. **Cross-organization visibility.** Platform-privileged users can see and act on all organizations. This extends the visibility of STORY-003-002's retrieve and list endpoints for those callers only; all other callers keep the ACTIVE-membership rule.
+3. **Persisted status.** `organizations.organization_status`: `text`, not null, default `ACTIVE`, check in (`ACTIVE`, `SUSPENDED`). Existing rows become `ACTIVE`. Named in MASTER_SPEC §26.1/§27.2 and in the Design Rule of §17.
+4. **Enforcement (every organization-scoped endpoint).** When an organization is `SUSPENDED`, every endpoint scoped to it denies the request with `403 FORBIDDEN` (existing generic message; no new error code). This applies to members and to platform-privileged users alike. The sole exception is `/activate`, which must stay reachable for a suspended organization or it could never be reactivated.
+5. **Endpoints.** Separate actions, matching the existing user actions (`/users/{userId}/suspend`, `/activate`):
+   - `POST /api/v1/management/organizations/:organizationId/suspend`
+   - `POST /api/v1/management/organizations/:organizationId/activate`
+
+### Flow
+
+- **Actor:** platform-privileged caller (decision 1). Callers without that privilege get the existing concealment: `404 RESOURCE_NOT_FOUND` if they have no relationship to the target, `403 FORBIDDEN` if they are a member but not platform-privileged.
+- **Preconditions:** authenticated caller; target organization exists.
+- **Main flow (suspend):** validate target, set `organization_status = SUSPENDED`, return `200` with the organization's status.
+- **Main flow (activate):** validate target, set `organization_status = ACTIVE`, return `200` with the organization's status.
+- **Rules:**
+  - SYSTEM cannot be suspended or activated; the request returns `404 RESOURCE_NOT_FOUND`, consistent with the SYSTEM rule used elsewhere.
+  - Suspend on an already `SUSPENDED` organization, and activate on an already `ACTIVE` one, return `200` with the current state (idempotent).
+- **Postconditions:** the organization's status is updated, and enforcement (decision 4) applies to all organization-scoped endpoints immediately after.
+
+### Scope impact (requires awareness before implementation)
+
+- **Closed Stories changed.** The enforcement check (decision 4) and the visibility extension (decision 2) affect STORY-003-002's retrieve and list, and every Organizations endpoint in STORY-003-003, 005, and 006. STORY-003-001 (create) is affected only by the status check on its own endpoints, which it does not have.
+- **Where the check lives.** Identity's membership services are frozen and do not know organization status. The status check goes in an Organizations helper that loads the organization and checks its status. Identity remains unchanged.
+- **Not yet decided:** the API_SPEC.md §22 contract text for the two endpoints, the enforcement helper's exact placement, and whether audit logging for these administrative actions (ADR-007 "Logging" / "Acciones administrativas") is written now or deferred. These need your approval before implementation.
+
+### Implementation State
+
+Implemented (all packages typecheck, lint, and test green: Organizations 251/251, Identity 294/294; monorepo typecheck 28/28, lint 21/21, test passing):
+- Status changes are conditional updates (`WHERE organization_status = <value read>`). A lost race re-reads and decides again, so each actual change has exactly one audit record, and its `previousStatus` is the value actually replaced.
+- `organizations.organization_status` migration (`supabase/migrations/20261006120000_organizations_status.sql`) and schema mapping.
+- `audit_logs` append-only migration (`20261006120100_audit_logs.sql`, UPDATE/DELETE trigger, RLS) and schema mapping.
+- Identity public service `verifyPlatformPrivilege` (ACTIVE OWNER or ADMIN in SYSTEM; any other state returns `NOT_PLATFORM_PRIVILEGED`), with its wiring and tests. Additive only: no existing Identity service changed.
+- Audit module: append-only `recordAuditEvent`, written inside the caller's transaction. Wired into Organizations.
+- Organizations: `POST .../suspend` and `POST .../activate` (route adapters in `apps/dashboard`), through `SetOrganizationStatusUseCase`: platform check, concealment rules, SYSTEM normalization, idempotency, and atomic audit.
+- Suspension enforcement on Retrieve, Update, Retrieve/Update Branding, and Retrieve/Update Settings. Returns `403 ORGANIZATION_SUSPENDED` after the existing authorization checks.
+- Platform visibility (API_SPEC.md §22): Retrieve admits a platform-privileged non-member, and List returns every organization to a platform-privileged caller. Both are unchanged for everyone else.
+
+Not yet done:
+- Migrations are not applied to any database. They have been written and checked against the Drizzle schema only.
+- Post-closure refinement bullets for STORY-003-002, 003, 005, and 006, recording the enforcement and visibility changes. These are documentation only.
+- `pnpm-lock.yaml` records the new `module-audit` dependency from `pnpm install`. It is uncommitted.
+
+### Known Documentation Inconsistencies (Not Resolved by This Story)
+
+- `API_SPEC.md §22`'s general Authorization section names "Platform administrators" and "Organization administrators." `MASTER_SPEC §18` names "Organization Administrator" as invalid. This Story uses the approved decision above, and the wording in `API_SPEC.md §22` is not changed.
+
+This ID is not reassigned to another capability.
 
 ---
 
@@ -683,7 +727,7 @@ A dedicated cross-document audit of configuration ownership and precedence (`MAS
 | Event Settings | **Events** | Event-level | No | `MASTER_SPEC §26.4` (full field list: Zona horaria, Idioma, Configuración visual, Configuración del RSVP, Configuración de asistentes, Configuración de privacidad, Configuración del dominio, Configuración de mensajería — "Toda configuración pertenece exactamente a un Event"); `§27.5` (Events Context, "Incluye: ... Configuración ..."); `Architecture.md` "## Events" ("Configuración general," "Configuración del evento") |
 | Feature Flags / Global (Platform) Configuration | **Administration** | Platform-level (non-commercial, per `§27.14`) | No | `MASTER_SPEC §27.14` (Administration Context, "Incluye: ... Configuración global, Feature Flags ...", "Este contexto no forma parte del producto comercial"); `§28.13` (Administration Module, Responsabilidades: "Configuración global, Feature Flags," Recursos: "System Settings") — converging at both the Bounded-Context and Functional-Module level |
 | Organization Plan / Subscription | **Billing** | Organization-level (commercial) | No | `API_SPEC.md §19` (`Subscription → Billing`); `Architecture.md` "## Billing" ("Planes," "Suscripciones," "Facturación"). Note: `MASTER_SPEC §27.2`'s "Organization Plan" and `Architecture.md` "## Organizations"' "Subscription Ownership" are stale wording under Organizations — a separately recorded, pre-existing inconsistency (see Known Documentation Inconsistencies), not reopened here |
-| Organization Status | Organizations (activation state) — implementation blocked | Organization-level | No — STORY-003-004 (reserved, blocked on an undefined Platform-administrator actor) | `MASTER_SPEC §27.2`; `API_SPEC.md §22` (Activate/Suspend Organization) |
+| Organization Status | Organizations (activation state) — decided, pending implementation | Organization-level | No — STORY-003-004 (decided; pending implementation authorization) | `MASTER_SPEC §27.2`; `API_SPEC.md §22` (Activate/Suspend Organization) |
 | Notifications | **Not determined by any authoritative source** | Undetermined | No | No `MASTER_SPEC`, `Architecture.md`, or `ADR-011` statement assigns Notifications to any module; only the stale `API_SPEC.md §32` mentions it |
 | Integrations | **Not determined by any authoritative source** | Undetermined | No | Same as Notifications — only `API_SPEC.md §32` (stale) mentions it |
 | Localization | No organization-level ownership found; only an event-level equivalent exists | Event-level only | No | `MASTER_SPEC §26.4` (Zona horaria, Idioma are Event Settings fields, not Organization-level) |
@@ -767,7 +811,7 @@ The following are excluded from this Story's scope and were not adopted from `AP
 - Event Settings.
 - Platform Defaults / configuration inheritance hierarchy.
 - Organization Plan — a Billing/Subscription concept (`API_SPEC §19`: `Subscription → Billing`), not a Settings field; also the subject of a separate, already-recorded documentation inconsistency (`MASTER_SPEC §27.2` "Organization Plan" vs. `§27.4` "Planes").
-- Organization Status — belongs to STORY-003-004 (Activate/Suspend), itself reserved and blocked.
+- Organization Status — belongs to STORY-003-004 (Activate/Suspend), decided and pending implementation authorization.
 - API Keys — a separately recorded, unresolved module-ownership gap (see §3 Out of Scope above), not part of Settings.
 
 ### Field-Level Audit (Historical — Superseded for `support_contact_email`)
@@ -843,7 +887,7 @@ Organization Creation & Onboarding
         └──────────────► STORY-003-005
                          White Label / Branding Configuration
 
-STORY-003-004 is reserved and excluded (see above) — not part of the dependency graph.
+STORY-003-004 is decided (contract recorded in its section) and pending separate implementation authorization. It depends on STORY-003-002 (visibility extension) and on the closed Stories' enforcement points, which must be re-checked when it is implemented.
 
 STORY-003-006 is reserved and excluded (see above) — not part of the dependency graph.
 ```

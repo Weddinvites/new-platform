@@ -1,5 +1,5 @@
 {
-  "name": "@allinvites/module-organizations",
+  "name": "@allinvites/module-audit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,13 +13,8 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@allinvites/auth": "workspace:*",
     "@allinvites/database": "workspace:*",
-    "@allinvites/kernel": "workspace:*",
-    "@allinvites/module-audit": "workspace:*",
-    "@allinvites/module-identity": "workspace:*",
-    "drizzle-orm": "^0.44.0",
-    "zod": "^4.1.0"
+    "@allinvites/kernel": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.1.2"

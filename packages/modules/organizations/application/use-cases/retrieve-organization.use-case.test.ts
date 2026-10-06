@@ -222,4 +222,56 @@ describe("RetrieveOrganizationUseCase", () => {
     if (resultB.ok) return;
     expect(resultB.error).toEqual({ type: "NOT_FOUND" });
   });
+
+  it("returns ORGANIZATION_SUSPENDED for an ACTIVE member of a SUSPENDED organization (STORY-003-004)", async () => {
+    organizationRepository.organizationsById.set(
+      ORGANIZATION_ID,
+      Organization.fromPersistence({
+        id: ORGANIZATION_ID,
+        organizationType: "PARTNER",
+        slug: Slug.fromPersistence("acme"),
+        displayName: "Acme",
+        createdAt: new Date(),
+        organizationStatus: "SUSPENDED",
+      }),
+    );
+    const { service } = fakeVerifyActiveMembership(ok(undefined));
+    const useCase = new RetrieveOrganizationUseCase(
+      organizationRepository,
+      service,
+      sessionVerifier,
+    );
+
+    const result = await useCase.execute("token", ORGANIZATION_ID);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({ type: "ORGANIZATION_SUSPENDED" });
+  });
+
+  it("keeps NOT_FOUND for a non-member of a SUSPENDED organization — suspension never reveals existence (STORY-003-004)", async () => {
+    organizationRepository.organizationsById.set(
+      ORGANIZATION_ID,
+      Organization.fromPersistence({
+        id: ORGANIZATION_ID,
+        organizationType: "PARTNER",
+        slug: Slug.fromPersistence("acme"),
+        displayName: "Acme",
+        createdAt: new Date(),
+        organizationStatus: "SUSPENDED",
+      }),
+    );
+    const { service } = fakeVerifyActiveMembership(err({ type: "NOT_A_MEMBER" }));
+    const useCase = new RetrieveOrganizationUseCase(
+      organizationRepository,
+      service,
+      sessionVerifier,
+    );
+
+    const result = await useCase.execute("token", ORGANIZATION_ID);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({ type: "NOT_FOUND" });
+  });
 });

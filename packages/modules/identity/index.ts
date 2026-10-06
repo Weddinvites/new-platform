@@ -31,6 +31,12 @@ import {
   type VerifyOwnerMembershipParams,
   type VerifyOwnerMembershipService,
 } from "./application/services/verify-owner-membership.service";
+import {
+  createVerifyPlatformPrivilegeService,
+  type VerifyPlatformPrivilegeError,
+  type VerifyPlatformPrivilegeParams,
+  type VerifyPlatformPrivilegeService,
+} from "./application/services/verify-platform-privilege.service";
 import { ActivateUserUseCase } from "./application/use-cases/activate-user.use-case";
 import { AssignUserRoleUseCase } from "./application/use-cases/assign-user-role.use-case";
 import { ChangePasswordUseCase } from "./application/use-cases/change-password.use-case";
@@ -139,6 +145,12 @@ export {
   type VerifyOwnerMembershipParams,
   type VerifyOwnerMembershipService,
 } from "./application/services/verify-owner-membership.service";
+export {
+  createVerifyPlatformPrivilegeService,
+  type VerifyPlatformPrivilegeError,
+  type VerifyPlatformPrivilegeParams,
+  type VerifyPlatformPrivilegeService,
+} from "./application/services/verify-platform-privilege.service";
 export {
   type ActivateUserError,
   type ActivateUserResult,
@@ -630,6 +642,25 @@ export function verifyOwnerMembership(
     );
   }
   return cachedVerifyOwnerMembership(params);
+}
+
+let cachedVerifyPlatformPrivilege: VerifyPlatformPrivilegeService | undefined;
+
+/**
+ * Ready-to-use, pre-wired `VerifyPlatformPrivilegeService` (STORY-003-004,
+ * EPIC_003_ORGANIZATIONS.md) — new addition to Identity's public surface.
+ * Returns only success/failure. Same lazy-instantiation guarantee as every
+ * other handler above.
+ */
+export function verifyPlatformPrivilege(
+  params: VerifyPlatformPrivilegeParams,
+): Promise<Result<void, VerifyPlatformPrivilegeError>> {
+  if (!cachedVerifyPlatformPrivilege) {
+    cachedVerifyPlatformPrivilege = createVerifyPlatformPrivilegeService(
+      new DrizzleOrganizationMembershipRepository(),
+    );
+  }
+  return cachedVerifyPlatformPrivilege(params);
 }
 
 let cachedListActiveOrganizationIds: ListActiveOrganizationIdsService | undefined;

@@ -55,6 +55,10 @@ export function createRetrieveOrganizationBrandingHandler(
         return errorResponse(401, "UNAUTHORIZED", "Authentication is required.");
       }
 
+      if (error.type === "ORGANIZATION_SUSPENDED") {
+        return errorResponse(403, "ORGANIZATION_SUSPENDED", "This organization is suspended.");
+      }
+
       // error.type === "UNEXPECTED" — never leak cause details to the client.
       return errorResponse(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.");
     }

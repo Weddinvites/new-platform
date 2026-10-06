@@ -166,4 +166,29 @@ describe("retrieveOrganizationHandler", () => {
       error: { code: "RESOURCE_NOT_FOUND" },
     });
   });
+
+  it("returns 403 ORGANIZATION_SUSPENDED for an ACTIVE member of a suspended organization, with a fixed message", async () => {
+    organizationRepository.organizationsById.set(
+      ORGANIZATION_ID,
+      Organization.fromPersistence({
+        id: ORGANIZATION_ID,
+        organizationType: "PARTNER",
+        slug: Slug.fromPersistence("acme"),
+        displayName: "Acme",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        organizationStatus: "SUSPENDED",
+      }),
+    );
+    const handler = buildHandler(fakeVerifyActiveMembership(ok(undefined)));
+
+    const response = await handler("Bearer a-valid-access-token", {
+      organizationId: ORGANIZATION_ID,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      success: false,
+      error: { code: "ORGANIZATION_SUSPENDED", message: "This organization is suspended." },
+    });
+  });
 });

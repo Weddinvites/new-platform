@@ -2,20 +2,24 @@
 // infrastructure, presentation/validators, mappers) remain private — see
 // Architecture.md "Module Communication".
 
+import { recordAuditEvent } from "@allinvites/module-audit";
 import {
   createInitialOwnerMembership,
   listActiveOrganizationIds,
   verifyActiveMembership,
   verifyOwnerMembership,
+  verifyPlatformPrivilege,
 } from "@allinvites/module-identity";
 import { CreateOrganizationUseCase } from "./application/use-cases/create-organization.use-case";
 import { ListOrganizationsUseCase } from "./application/use-cases/list-organizations.use-case";
 import { RetrieveOrganizationUseCase } from "./application/use-cases/retrieve-organization.use-case";
 import { RetrieveOrganizationBrandingUseCase } from "./application/use-cases/retrieve-organization-branding.use-case";
 import { RetrieveOrganizationSettingsUseCase } from "./application/use-cases/retrieve-organization-settings.use-case";
+import { SetOrganizationStatusUseCase } from "./application/use-cases/set-organization-status.use-case";
 import { UpdateOrganizationUseCase } from "./application/use-cases/update-organization.use-case";
 import { UpdateOrganizationBrandingUseCase } from "./application/use-cases/update-organization-branding.use-case";
 import { UpdateOrganizationSettingsUseCase } from "./application/use-cases/update-organization-settings.use-case";
+import { createIdentityPlatformPrivilegeVerifier } from "./infrastructure/providers/identity-platform-privilege-verifier";
 import { SupabaseSessionVerifier } from "./infrastructure/providers/supabase-session-verifier";
 import { DrizzleOrganizationRepository } from "./infrastructure/repositories/drizzle-organization-repository";
 import {
@@ -26,6 +30,7 @@ import { createListOrganizationsHandler } from "./presentation/handlers/list-org
 import { createRetrieveOrganizationHandler } from "./presentation/handlers/retrieve-organization.handler";
 import { createRetrieveOrganizationBrandingHandler } from "./presentation/handlers/retrieve-organization-branding.handler";
 import { createRetrieveOrganizationSettingsHandler } from "./presentation/handlers/retrieve-organization-settings.handler";
+import { createSetOrganizationStatusHandler } from "./presentation/handlers/set-organization-status.handler";
 import { createUpdateOrganizationHandler } from "./presentation/handlers/update-organization.handler";
 import { createUpdateOrganizationBrandingHandler } from "./presentation/handlers/update-organization-branding.handler";
 import { createUpdateOrganizationSettingsHandler } from "./presentation/handlers/update-organization-settings.handler";
@@ -153,6 +158,7 @@ export function retrieveOrganizationHandler(
         new DrizzleOrganizationRepository(),
         verifyActiveMembership,
         new SupabaseSessionVerifier(),
+        platformPrivilegeFor(),
       ),
     );
   }
@@ -313,8 +319,79 @@ export function listOrganizationsHandler(
         new DrizzleOrganizationRepository(),
         listActiveOrganizationIds,
         new SupabaseSessionVerifier(),
+        {
+          isPlatformPrivileged: platformPrivilegeFor(),
+          organizations: new DrizzleOrganizationRepository(),
+        },
       ),
     );
   }
   return cachedListOrganizationsHandler(authorizationHeader, query);
+}
+
+/**
+ * STORY-003-004 — the platform-privilege check (ACTIVE OWNER or ADMIN in
+ * SYSTEM) wired to Identity's public `verifyPlatformPrivilege`. Built per
+ * handler factory, on first use only.
+ */
+function platformPrivilegeFor() {
+  return createIdentityPlatformPrivilegeVerifier(
+    new DrizzleOrganizationRepository(),
+    verifyPlatformPrivilege,
+  );
+}
+
+function setOrganizationStatusUseCase(): SetOrganizationStatusUseCase {
+  const organizations = new DrizzleOrganizationRepository();
+  return new SetOrganizationStatusUseCase(
+    organizations,
+    createIdentityPlatformPrivilegeVerifier(organizations, verifyPlatformPrivilege),
+    verifyActiveMembership,
+    recordAuditEvent,
+    new SupabaseSessionVerifier(),
+  );
+}
+
+let cachedSuspendOrganizationHandler:
+  | ReturnType<typeof createSetOrganizationStatusHandler>
+  | undefined;
+
+/**
+ * Ready-to-use handler for POST /api/v1/management/organizations/:organizationId/suspend
+ * (STORY-003-004). Requires platform privilege; audit-logged on a real change.
+ * Same lazy-instantiation guarantee as createOrganizationHandler above.
+ */
+export function suspendOrganizationHandler(
+  authorizationHeader: string | null | undefined,
+  params: unknown,
+): Promise<HandlerResponse> {
+  if (!cachedSuspendOrganizationHandler) {
+    cachedSuspendOrganizationHandler = createSetOrganizationStatusHandler(
+      setOrganizationStatusUseCase(),
+      "SUSPENDED",
+    );
+  }
+  return cachedSuspendOrganizationHandler(authorizationHeader, params);
+}
+
+let cachedActivateOrganizationHandler:
+  | ReturnType<typeof createSetOrganizationStatusHandler>
+  | undefined;
+
+/**
+ * Ready-to-use handler for POST /api/v1/management/organizations/:organizationId/activate
+ * (STORY-003-004). Requires platform privilege; audit-logged on a real change.
+ * Same lazy-instantiation guarantee as createOrganizationHandler above.
+ */
+export function activateOrganizationHandler(
+  authorizationHeader: string | null | undefined,
+  params: unknown,
+): Promise<HandlerResponse> {
+  if (!cachedActivateOrganizationHandler) {
+    cachedActivateOrganizationHandler = createSetOrganizationStatusHandler(
+      setOrganizationStatusUseCase(),
+      "ACTIVE",
+    );
+  }
+  return cachedActivateOrganizationHandler(authorizationHeader, params);
 }

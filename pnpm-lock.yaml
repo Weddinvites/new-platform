@@ -132,7 +132,18 @@ importers:
 
   packages/modules/assets: {}
 
-  packages/modules/audit: {}
+  packages/modules/audit:
+    dependencies:
+      '@allinvites/database':
+        specifier: workspace:*
+        version: link:../../database
+      '@allinvites/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.1.2
 
   packages/modules/billing: {}
 
@@ -179,6 +190,9 @@ importers:
       '@allinvites/kernel':
         specifier: workspace:*
         version: link:../../kernel
+      '@allinvites/module-audit':
+        specifier: workspace:*
+        version: link:../audit
       '@allinvites/module-identity':
         specifier: workspace:*
         version: link:../identity

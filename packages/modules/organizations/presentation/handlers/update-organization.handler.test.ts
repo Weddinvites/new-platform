@@ -331,4 +331,32 @@ describe("updateOrganizationHandler", () => {
       ["id", "organization_type", "slug", "display_name", "created_at"].sort(),
     );
   });
+
+  it("returns 403 ORGANIZATION_SUSPENDED for an OWNER of a suspended organization, and changes nothing", async () => {
+    organizationRepository.organizationsById.set(
+      ORGANIZATION_ID,
+      Organization.fromPersistence({
+        id: ORGANIZATION_ID,
+        organizationType: "PARTNER",
+        slug: Slug.fromPersistence("acme"),
+        displayName: "Acme",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        organizationStatus: "SUSPENDED",
+      }),
+    );
+    const handler = buildHandler(fakeVerifyOwnerMembership(ok(undefined)));
+
+    const response = await handler(
+      "Bearer a-valid-access-token",
+      { organizationId: ORGANIZATION_ID },
+      { display_name: "New Name" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      success: false,
+      error: { code: "ORGANIZATION_SUSPENDED", message: "This organization is suspended." },
+    });
+    expect(organizationRepository.organizationsById.get(ORGANIZATION_ID)?.displayName).toBe("Acme");
+  });
 });

@@ -16,6 +16,17 @@ export function toOrganizationDto(organization: Organization): OrganizationDto {
   };
 }
 
+/** STORY-003-004 — Activate / Suspend Organization. Returns only the id and the resulting status. */
+export function toOrganizationStatusDto(organization: Organization): {
+  id: string;
+  organization_status: "ACTIVE" | "SUSPENDED";
+} {
+  return {
+    id: organization.id,
+    organization_status: organization.organizationStatus,
+  };
+}
+
 /** STORY-003-005 — Retrieve/Update Organization Branding. A standalone DTO, not merged into OrganizationDto. */
 export function toOrganizationBrandingDto(organization: Organization): OrganizationBrandingDto {
   return {

@@ -1,7 +1,8 @@
 import { type Database, getDatabase, schema, type Transaction } from "@allinvites/database";
-import { asc, count, eq, inArray } from "drizzle-orm";
-import { Organization } from "../../domain/entities/organization";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { Organization, type OrganizationStatus } from "../../domain/entities/organization";
 import type { OrganizationRepository } from "../../domain/repositories/organization-repository";
+import type { OrganizationStatusRepository } from "../../domain/repositories/organization-status-repository";
 import type { OrganizationType } from "../../domain/value-objects/organization-type";
 import { Slug } from "../../domain/value-objects/slug";
 
@@ -10,7 +11,9 @@ import { Slug } from "../../domain/value-objects/slug";
  * rows outside this file — every method returns Domain objects only
  * (DEVELOPMENT_RULES.md §9).
  */
-export class DrizzleOrganizationRepository implements OrganizationRepository {
+export class DrizzleOrganizationRepository
+  implements OrganizationRepository, OrganizationStatusRepository
+{
   constructor(private readonly db: Database = getDatabase()) {}
 
   async create(organization: Organization, tx: Transaction): Promise<void> {
@@ -113,6 +116,57 @@ export class DrizzleOrganizationRepository implements OrganizationRepository {
     return this.toOrganization(row);
   }
 
+  async findSystemOrganization(): Promise<Organization | null> {
+    const rows = await this.db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.organizationType, "SYSTEM"))
+      .limit(1);
+
+    const row = rows[0];
+    return row ? this.toOrganization(row) : null;
+  }
+
+  async findPage(pagination: {
+    page: number;
+    pageSize: number;
+  }): Promise<{ items: Organization[]; total: number }> {
+    const offset = (pagination.page - 1) * pagination.pageSize;
+
+    const [rows, totalRows] = await Promise.all([
+      this.db
+        .select()
+        .from(schema.organizations)
+        .orderBy(asc(schema.organizations.createdAt))
+        .limit(pagination.pageSize)
+        .offset(offset),
+      this.db.select({ value: count() }).from(schema.organizations),
+    ]);
+
+    return {
+      items: rows.map((row) => this.toOrganization(row)),
+      total: totalRows[0]?.value ?? 0,
+    };
+  }
+
+  async updateStatus(
+    id: string,
+    from: OrganizationStatus,
+    to: OrganizationStatus,
+    tx: Transaction,
+  ): Promise<Organization | null> {
+    const rows = await tx
+      .update(schema.organizations)
+      .set({ organizationStatus: to })
+      .where(
+        and(eq(schema.organizations.id, id), eq(schema.organizations.organizationStatus, from)),
+      )
+      .returning();
+
+    const row = rows[0];
+    return row ? this.toOrganization(row) : null;
+  }
+
   private toOrganization(row: typeof schema.organizations.$inferSelect): Organization {
     return Organization.fromPersistence({
       id: row.id,
@@ -125,6 +179,7 @@ export class DrizzleOrganizationRepository implements OrganizationRepository {
       primaryColor: row.primaryColor,
       secondaryColor: row.secondaryColor,
       supportContactEmail: row.supportContactEmail,
+      organizationStatus: row.organizationStatus,
     });
   }
 }

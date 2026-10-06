@@ -9,6 +9,7 @@ export type UpdateOrganizationSettingsError =
   | { readonly type: "UNAUTHORIZED" }
   | { readonly type: "NOT_FOUND" }
   | { readonly type: "FORBIDDEN" }
+  | { readonly type: "ORGANIZATION_SUSPENDED" }
   | { readonly type: "UNEXPECTED"; readonly cause: unknown };
 
 export type UpdateOrganizationSettingsResult = {
@@ -64,6 +65,10 @@ export class UpdateOrganizationSettingsUseCase {
 
     if (organization.organizationType === "SYSTEM") {
       return err({ type: "NOT_FOUND" });
+    }
+
+    if (organization.isSuspended()) {
+      return err({ type: "ORGANIZATION_SUSPENDED" });
     }
 
     const updated = await this.organizationRepository.updateSettings(command.organizationId, {
