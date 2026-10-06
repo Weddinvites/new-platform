@@ -1,0 +1,68 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "apps/dashboard"
+    },
+    {
+      "path": "packages/ui"
+    },
+    {
+      "path": "packages/database"
+    },
+    {
+      "path": "packages/auth"
+    },
+    {
+      "path": "packages/kernel"
+    },
+    {
+      "path": "packages/utils"
+    },
+    {
+      "path": "packages/config"
+    },
+    {
+      "path": "packages/api-client"
+    },
+    {
+      "path": "packages/testing"
+    },
+    {
+      "path": "packages/modules/identity"
+    },
+    {
+      "path": "packages/modules/organizations"
+    },
+    {
+      "path": "packages/modules/billing"
+    },
+    {
+      "path": "packages/modules/events"
+    },
+    {
+      "path": "packages/modules/guests"
+    },
+    {
+      "path": "packages/modules/messaging"
+    },
+    {
+      "path": "packages/modules/invitation-deployment"
+    },
+    {
+      "path": "packages/modules/assets"
+    },
+    {
+      "path": "packages/modules/domains"
+    },
+    {
+      "path": "packages/modules/ai"
+    },
+    {
+      "path": "packages/modules/analytics"
+    },
+    {
+      "path": "packages/modules/audit"
+    }
+  ]
+}
