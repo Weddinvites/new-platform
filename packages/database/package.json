@@ -1,0 +1,20 @@
+{
+  "name": "@allinvites/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@allinvites/config": "workspace:*",
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.5"
+  }
+}

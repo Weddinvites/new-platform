@@ -1,0 +1,12 @@
+{
+  "extends": "../../tooling/typescript/base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts"],
+  "references": []
+}
