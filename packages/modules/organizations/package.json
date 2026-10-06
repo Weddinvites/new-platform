@@ -1,0 +1,26 @@
+{
+  "name": "@allinvites/module-organizations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@allinvites/auth": "workspace:*",
+    "@allinvites/database": "workspace:*",
+    "@allinvites/kernel": "workspace:*",
+    "@allinvites/module-identity": "workspace:*",
+    "drizzle-orm": "^0.44.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
+  }
+}
