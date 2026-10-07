@@ -350,6 +350,7 @@ STORY-003-002 is implemented in full, matching the approved contract above:
 - **Identity cross-module contracts**: `verifyActiveMembership` and `listActiveOrganizationIds` were added as the two new Identity-owned public Application Services, built entirely on Identity's existing repository methods (`OrganizationMembershipRepository.findByUserAndOrganization`, `UserRepository.findMembershipsByUserId`) — no new Identity repository methods or schema changes were required. Organizations imports neither `OrganizationMembershipRepository`, `OrganizationMembership` domain internals, nor the `organization_memberships` table.
 - **Pagination and ordering**: `OrganizationRepository.findByIds` performs bounded, database-level pagination (`inArray` + `orderBy(asc(created_at))` + `limit`/`offset`) over the already ACTIVE-membership-scoped id set — never an in-memory pagination over the full `organizations` table. Ordering is the fixed, deterministic `created_at ASC`.
 - **404 behavior**: nonexistent and inaccessible (no ACTIVE membership) organizations return byte-identical `RESOURCE_NOT_FOUND` (404) responses — verified directly by a dedicated handler test comparing serialized response bodies.
+- **Post-closure refinement (STORY-003-004)**: Retrieve and List also serve platform-privileged callers (ACTIVE OWNER or ADMIN in SYSTEM). Retrieve admits such a caller without a membership in the target, and List returns every Organization to them, including SUSPENDED ones. Retrieve returns `403 ORGANIZATION_SUSPENDED` for a SUSPENDED Organization after authorization, for every caller. The ACTIVE-membership rule and the byte-identical 404 are unchanged for all other callers. The platform check is Identity's new `verifyPlatformPrivilege`; no existing Identity service changed.
 
 ### Validation Results
 
@@ -490,6 +491,7 @@ STORY-003-003 is implemented in full, matching the approved contract above:
 - **Request validation**: `display_name` is validated via `z.string().trim().min(1)`, rejecting missing, empty, and whitespace-only values with `VALIDATION_ERROR` (422); the schema's `.trim()` also produces the trimmed value the use case persists, so no separate trimming step exists elsewhere. `slug`, `organization_type`, `id`, and `created_at` are not accepted by the request schema (unknown keys are stripped) and are never touched by the new `OrganizationRepository.update`, which sets only `display_name`.
 - **Response**: 200 OK, reusing STORY-003-002's `OrganizationDto` with no shape change — no `updated_at`.
 - **Persistence**: a single-row `UPDATE ... WHERE id = ... RETURNING` in `DrizzleOrganizationRepository.update`; no transaction, no migration, no settings table/columns, no versioning/concurrency mechanism.
+- **Post-closure refinement (STORY-003-004)**: Update Organization returns `403 ORGANIZATION_SUSPENDED` (with the fixed message) for a SUSPENDED Organization, after the OWNER check and before any write. Every existing response is unchanged for an ACTIVE Organization.
 
 ### Validation Results
 
@@ -562,7 +564,7 @@ Implemented (all packages typecheck, lint, and test green: Organizations 251/251
 
 Not yet done:
 - Migrations are not applied to any database. They have been written and checked against the Drizzle schema only.
-- Post-closure refinement bullets for STORY-003-002, 003, 005, and 006, recording the enforcement and visibility changes. These are documentation only.
+- Post-closure refinement bullets for STORY-003-002, 003, 005, and 006 are recorded in each Story's section, covering the enforcement and visibility changes.
 - `pnpm-lock.yaml` records the new `module-audit` dependency from `pnpm install`. It is uncommitted.
 
 ### Known Documentation Inconsistencies (Not Resolved by This Story)
@@ -680,6 +682,7 @@ STORY-003-005 is implemented in full, matching the approved contract above:
 - **Persistence**: four new nullable columns on `organizations` (`brand_name`, `logo`, `primary_color`, `secondary_color`), added via `packages/database/src/schema.ts` and `supabase/migrations/20260922000000_organizations_branding.sql`, following this repository's existing hand-written SQL migration convention. Single-row update; no transaction.
 - **Custom Domain**: confirmed excluded — remains exclusively Invitation Deployment's concern, per-Invitation; Organizations stores no domain data of any kind.
 - **Post-closure refinement**: a focused validator review (after initial closure) found `primary_color`/`secondary_color` rejected values with incidental leading/trailing whitespace, inconsistent with `brand_name` (explicitly trimmed) and `logo` (implicitly trimmed via URL parsing). Fixed by adding `.trim()` to both color fields, with three new tests added to cover all four fields' trimming behavior explicitly.
+- **Post-closure refinement (STORY-003-004)**: Retrieve and Update Branding return `403 ORGANIZATION_SUSPENDED` for a SUSPENDED Organization, after the OWNER check. Responses for ACTIVE Organizations are unchanged.
 
 ### Validation Results
 
@@ -849,6 +852,7 @@ STORY-003-006 is implemented in full, matching the approved contract above:
 - **Response**: a new, standalone `OrganizationSettingsDto` — `OrganizationDto` (STORY-003-002) and `OrganizationBrandingDto` (STORY-003-005) are unchanged.
 - **Persistence**: one new nullable column on `organizations` (`support_contact_email`), added via `packages/database/src/schema.ts` and `supabase/migrations/20260922010000_organizations_settings.sql`, following this repository's hand-written SQL migration convention. Single-row update; no transaction.
 - **Post-closure refinement**: a focused validator review (after initial closure) found the email check accepted arbitrarily long input and rejected legitimate punycode/single-label domains; both gaps were fixed by adding the length cap and switching to the `html5Email` pattern above, with three new tests added to cover them. The branding validator (STORY-003-005) received an analogous fix in the same review pass — see that Story's Implementation Summary.
+- **Post-closure refinement (STORY-003-004)**: Retrieve and Update Settings return `403 ORGANIZATION_SUSPENDED` for a SUSPENDED Organization, after the OWNER check. Responses for ACTIVE Organizations are unchanged.
 
 ### Validation Results
 
