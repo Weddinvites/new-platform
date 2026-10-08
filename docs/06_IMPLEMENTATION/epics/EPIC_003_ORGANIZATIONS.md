@@ -519,7 +519,7 @@ EPIC-002, Stories 002-001 through 002-008, STORY-003-001, and STORY-003-002 rema
 
 ## STORY-003-004 — Activate / Suspend Organization
 
-**Status:** Contract Applied (API_SPEC.md §22). Implementation partially complete; blocked on one Identity addition (see "Implementation State").
+**Status:** Implemented / Ready for Closure (see "Implementation State").
 
 The three gaps that previously blocked this Story are resolved by product decisions, recorded below. Nothing in this section is implemented yet.
 
@@ -891,9 +891,9 @@ Organization Creation & Onboarding
         └──────────────► STORY-003-005
                          White Label / Branding Configuration
 
-STORY-003-004 is decided (contract recorded in its section) and pending separate implementation authorization. It depends on STORY-003-002 (visibility extension) and on the closed Stories' enforcement points, which must be re-checked when it is implemented.
+STORY-003-004 is implemented (see its section). It depends on STORY-003-002 (visibility extension, implemented) and extends the enforcement points of STORY-003-002, 003, 005, and 006 (each Story's own section records its post-closure refinement).
 
-STORY-003-006 is reserved and excluded (see above) — not part of the dependency graph.
+STORY-003-006 is implemented (see its section) — not part of the dependency graph above because it depends only on STORY-003-001, the same as STORY-003-002/003/005.
 ```
 
 STORY-003-001 is the dependency root: it is the only Story that produces the Organization entity and the only Story requiring a new cross-module contract with Identity; every other Story operates on an Organization it has already created.
@@ -919,8 +919,8 @@ All Stories must respect the following constraints:
 
 EPIC-003 is complete when:
 
-- STORY-003-001, STORY-003-002, STORY-003-003, and STORY-003-005 are each contract-audited, approved, implemented, and tested.
-- No Subscription, Domain-entity, API-Key, or Platform-Administrator logic has been introduced anywhere in the Organizations module.
+- STORY-003-001, STORY-003-002, STORY-003-003, STORY-003-004, STORY-003-005, and STORY-003-006 are each contract-audited, approved, implemented, and tested. (STORY-003-004 and STORY-003-006 were added to the Epic after this Definition of Done was first written; this list now names all six.)
+- No Subscription, Domain-entity, API-Key, or Platform-Administrator logic has been introduced anywhere in the Organizations module. (STORY-003-004's "platform-privileged caller" is not an exception to this: it introduces no new role — platform privilege is an ACTIVE OWNER or ADMIN membership in the existing SYSTEM organization, using roles STORY-002-006 already defines.)
 - The `organizations` schema and any new settings/branding fields exist only as explicitly approved in each Story's own contract audit.
 - Identity's new `CreateInitialOwnerMembershipService` is implemented, tested, and does not alter any existing EPIC-002 Story's approved contract.
 - Unit tests pass. Integration tests pass. Typecheck passes. Lint passes. Build passes.
