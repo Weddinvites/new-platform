@@ -1,6 +1,6 @@
 # EPIC 003 — Organizations
 
-**Status:** In Progress
+**Status:** Closed — Implemented (2026-10-08). All six Stories (001–006) are closed; see §8 "Epic Definition of Done" for verification.
 **Module:** `organizations`
 **Priority:** Critical
 **Phase:** MVP
@@ -25,6 +25,7 @@ This Epic covers:
 - Organization retrieval and listing
 - Organization update and settings management
 - White Label / branding configuration (including a reference-only Custom Domain field)
+- Organization activation/suspension and status-based enforcement across all Organizations endpoints (STORY-003-004, decided and implemented after this Epic's initial documentation — see §3 Out of Scope and STORY-003-004's own section)
 
 ---
 
@@ -32,7 +33,7 @@ This Epic covers:
 
 The following are not implemented as part of this Epic:
 
-- Activate/Suspend Organization — blocked; no authoritative source defines the "Platform administrator" actor referenced by API_SPEC §22, and no new actor/role/authorization model may be invented. Preserved as a documented gap for a future Epic/ADR.
+- ~~Activate/Suspend Organization — blocked; no authoritative source defines the "Platform administrator" actor referenced by API_SPEC §22, and no new actor/role/authorization model may be invented.~~ **Superseded:** this gap was resolved by defining "platform-privileged" as an ACTIVE OWNER/ADMIN membership in the existing SYSTEM organization — not a new actor, role, or authorization model — and the capability was implemented and closed as STORY-003-004 (see its section and the updated §2 Scope above).
 - Subscription domain logic, entity, or ownership — owned by Billing (ADR-011; API_SPEC §19 "API Resource Ownership"). The conflicting "Subscription ownership" wording in Architecture.md's Organizations section and API_SPEC §22's Responsibilities list is stale documentation, not corrected as part of this Epic.
 - Domain entity, DNS, or provisioning logic — owned by the future Domains module (ADR-011). Organizations may only store/configure a reference to a Custom Domain.
 - API Key entity, repository, or API — module ownership is unresolved (absent from both ADR-011's and API_SPEC §19's ownership tables, despite being a fully-specified entity in MASTER_SPEC §26.14). Recorded as a separate documentation gap for future Epic planning.
@@ -893,10 +894,12 @@ Organization Creation & Onboarding
         └──────────────► STORY-003-005
                          White Label / Branding Configuration
 
-STORY-003-004 is implemented (see its section). It depends on STORY-003-002 (visibility extension, implemented) and extends the enforcement points of STORY-003-002, 003, 005, and 006 (each Story's own section records its post-closure refinement).
+STORY-003-004 is implemented and closed (see its section). It depends on STORY-003-002 (visibility extension, implemented) and extends the enforcement points of STORY-003-002, 003, 005, and 006 (each Story's own section records its post-closure refinement).
 
-STORY-003-006 is implemented (see its section) — not part of the dependency graph above because it depends only on STORY-003-001, the same as STORY-003-002/003/005.
+STORY-003-006 is implemented and closed (see its section) — not part of the dependency graph above because it depends only on STORY-003-001, the same as STORY-003-002/003/005.
 ```
+
+All six Stories are now closed (see each Story's own "Status" line and Implementation Summary/State section).
 
 STORY-003-001 is the dependency root: it is the only Story that produces the Organization entity and the only Story requiring a new cross-module contract with Identity; every other Story operates on an Organization it has already created.
 
@@ -921,13 +924,15 @@ All Stories must respect the following constraints:
 
 EPIC-003 is complete when:
 
-- STORY-003-001, STORY-003-002, STORY-003-003, STORY-003-004, STORY-003-005, and STORY-003-006 are each contract-audited, approved, implemented, and tested. (STORY-003-004 and STORY-003-006 were added to the Epic after this Definition of Done was first written; this list now names all six.)
-- No Subscription, Domain-entity, API-Key, or Platform-Administrator logic has been introduced anywhere in the Organizations module. (STORY-003-004's "platform-privileged caller" is not an exception to this: it introduces no new role — platform privilege is an ACTIVE OWNER or ADMIN membership in the existing SYSTEM organization, using roles STORY-002-006 already defines.)
-- The `organizations` schema and any new settings/branding fields exist only as explicitly approved in each Story's own contract audit.
-- Identity's new `CreateInitialOwnerMembershipService` is implemented, tested, and does not alter any existing EPIC-002 Story's approved contract.
-- Unit tests pass. Integration tests pass. Typecheck passes. Lint passes. Build passes.
-- No undocumented architectural changes were introduced.
-- No unresolved security-critical issues remain.
+- STORY-003-001, STORY-003-002, STORY-003-003, STORY-003-004, STORY-003-005, and STORY-003-006 are each contract-audited, approved, implemented, and tested. (STORY-003-004 and STORY-003-006 were added to the Epic after this Definition of Done was first written; this list now names all six.) **Satisfied** — all six carry a "Closed — Implemented" status line.
+- No Subscription, Domain-entity, API-Key, or Platform-Administrator logic has been introduced anywhere in the Organizations module. (STORY-003-004's "platform-privileged caller" is not an exception to this: it introduces no new role — platform privilege is an ACTIVE OWNER or ADMIN membership in the existing SYSTEM organization, using roles STORY-002-006 already defines.) **Satisfied.**
+- The `organizations` schema and any new settings/branding fields exist only as explicitly approved in each Story's own contract audit. **Satisfied** — `organization_status`, `brand_name`/`logo`/`primary_color`/`secondary_color`, and `support_contact_email` each trace to an explicit approval recorded in their own Story.
+- Identity's new `CreateInitialOwnerMembershipService` is implemented, tested, and does not alter any existing EPIC-002 Story's approved contract. **Satisfied**, along with the other additive-only Identity services added later in the Epic (`verifyActiveMembership`, `listActiveOrganizationIds`, `verifyOwnerMembership`, `verifyPlatformPrivilege`) — none alter an existing EPIC-002 contract.
+- Unit tests pass. Integration tests pass. Typecheck passes. Lint passes. Build passes. **Satisfied** for unit/typecheck/lint/build, per each Story's own Validation Results; no database-integration-test infrastructure exists anywhere in this repository, a pre-existing, codebase-wide gap accepted by every Story (see each Story's "Accepted Non-Blocking Gaps").
+- No undocumented architectural changes were introduced. **Satisfied.**
+- No unresolved security-critical issues remain. **Satisfied** — the Supabase advisor findings raised during this Epic (the `audit_logs` trigger's mutable `search_path`) were fixed and verified; the pre-existing, project-level `rls_auto_enable` finding predates this Epic and is recorded as an accepted non-blocking gap under STORY-003-004.
+
+This Definition of Done is fully satisfied as of 2026-10-08; EPIC-003 is closed.
 
 ---
 
@@ -937,4 +942,4 @@ The first implementation target is:
 
 **STORY-003-001 — Organization Creation & Onboarding**
 
-Its contract has been audited and approved (see this document, §5). It is the correct dependency root: every other Story in this Epic operates on an Organization that only this Story can create, and it is the only Story requiring the new Identity cross-module contract. STORY-003-001 is not blocked and may proceed to implementation once this documentation is finalized.
+Its contract was audited and approved (see this document, §5). It is the correct dependency root: every other Story in this Epic operates on an Organization that only this Story can create, and it is the only Story requiring the new Identity cross-module contract. STORY-003-001 was implemented first, as planned, and is now closed along with the rest of the Epic (see §8).
