@@ -368,4 +368,23 @@ describe("UpdateOrganizationBrandingUseCase", () => {
     if (resultB.ok) return;
     expect(resultB.error).toEqual({ type: "NOT_FOUND" });
   });
+
+  it("returns SUBSCRIPTION_PAST_DUE for an ACTIVE OWNER of a Past Due organization, and does not update it (STORY-004-001)", async () => {
+    organizationRepository.organizationsById.set(ORGANIZATION_ID, organization());
+    const { service } = fakeVerifyOwnerMembership(ok(undefined));
+    const useCase = new UpdateOrganizationBrandingUseCase(
+      organizationRepository,
+      service,
+      sessionVerifier,
+      async () => err({ type: "SUBSCRIPTION_PAST_DUE" }),
+    );
+
+    const result = await useCase.execute("token", {
+      organizationId: ORGANIZATION_ID,
+      brandName: "New Brand",
+    });
+
+    expect(result).toEqual(err({ type: "SUBSCRIPTION_PAST_DUE" }));
+    expect(organizationRepository.updateBrandingCalls).toHaveLength(0);
+  });
 });

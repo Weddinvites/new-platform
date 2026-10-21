@@ -1,6 +1,11 @@
 import type { Database, Transaction } from "@allinvites/database";
 import { err, ok, type Result } from "@allinvites/kernel";
 import type {
+  CreateInitialSubscriptionError,
+  CreateInitialSubscriptionResult,
+  CreateInitialSubscriptionService,
+} from "@allinvites/module-billing";
+import type {
   CreateInitialOwnerMembershipError,
   CreateInitialOwnerMembershipResult,
   CreateInitialOwnerMembershipService,
@@ -17,6 +22,14 @@ import type { OrganizationRepository } from "../../domain/repositories/organizat
 import { createCreateOrganizationHandler } from "./create-organization.handler";
 
 const CALLER_ID = "11111111-1111-1111-1111-111111111111";
+
+const SUBSCRIPTION_SUCCESS: CreateInitialSubscriptionResult = {
+  subscriptionId: "subscription-1",
+  plan: "EMPRENDEDOR",
+  status: "TRIAL",
+  trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+};
 
 class FakeOrganizationRepository implements OrganizationRepository {
   created: Organization[] = [];
@@ -54,6 +67,14 @@ function createInitialOwnerMembershipReturning(
   return async () => result;
 }
 
+function createInitialSubscriptionReturning(
+  result: Result<CreateInitialSubscriptionResult, CreateInitialSubscriptionError> = ok(
+    SUBSCRIPTION_SUCCESS,
+  ),
+): CreateInitialSubscriptionService {
+  return async () => result;
+}
+
 describe("createOrganizationHandler", () => {
   let handler: ReturnType<typeof createCreateOrganizationHandler>;
   let organizationRepository: FakeOrganizationRepository;
@@ -65,15 +86,17 @@ describe("createOrganizationHandler", () => {
     const useCase = new CreateOrganizationUseCase(
       organizationRepository,
       createInitialOwnerMembershipReturning(ok({ membershipId: "membership-1" })),
+      createInitialSubscriptionReturning(),
       sessionVerifier,
       new FakeDatabase() as unknown as Database,
     );
     handler = createCreateOrganizationHandler(useCase);
   });
 
-  it("returns 201 with the created organization and its OWNER membership on success", async () => {
+  it("returns 201 with the created organization, its OWNER membership, and its initial Subscription on success", async () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme Weddings",
+      plan_id: "EMPRENDEDOR",
     });
 
     expect(response.status).toBe(201);
@@ -84,12 +107,13 @@ describe("createOrganizationHandler", () => {
         slug: "acme-weddings",
         display_name: "Acme Weddings",
         membership: { role: "OWNER", status: "ACTIVE" },
+        subscription: { plan: "EMPRENDEDOR", status: "TRIAL" },
       },
     });
   });
 
   it("returns 401 UNAUTHORIZED when no Authorization header is present", async () => {
-    const response = await handler(null, { display_name: "Acme Weddings" });
+    const response = await handler(null, { display_name: "Acme Weddings", plan_id: "EMPRENDEDOR" });
 
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({ success: false, error: { code: "UNAUTHORIZED" } });
@@ -97,7 +121,10 @@ describe("createOrganizationHandler", () => {
   });
 
   it("returns 401 UNAUTHORIZED for a malformed Authorization header", async () => {
-    const response = await handler("not-a-bearer-token", { display_name: "Acme Weddings" });
+    const response = await handler("not-a-bearer-token", {
+      display_name: "Acme Weddings",
+      plan_id: "EMPRENDEDOR",
+    });
 
     expect(response.status).toBe(401);
   });
@@ -105,21 +132,27 @@ describe("createOrganizationHandler", () => {
   it("returns 401 UNAUTHORIZED when the access token is invalid or expired", async () => {
     sessionVerifier.result = err({ type: "UNAUTHORIZED" });
 
-    const response = await handler("Bearer an-expired-token", { display_name: "Acme Weddings" });
+    const response = await handler("Bearer an-expired-token", {
+      display_name: "Acme Weddings",
+      plan_id: "EMPRENDEDOR",
+    });
 
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({ success: false, error: { code: "UNAUTHORIZED" } });
   });
 
   it("returns 422 VALIDATION_ERROR for a missing display_name", async () => {
-    const response = await handler("Bearer a-valid-access-token", {});
+    const response = await handler("Bearer a-valid-access-token", { plan_id: "EMPRENDEDOR" });
 
     expect(response.status).toBe(422);
     expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
   });
 
   it("returns 422 VALIDATION_ERROR for an empty-string display_name", async () => {
-    const response = await handler("Bearer a-valid-access-token", { display_name: "" });
+    const response = await handler("Bearer a-valid-access-token", {
+      display_name: "",
+      plan_id: "EMPRENDEDOR",
+    });
 
     expect(response.status).toBe(422);
     expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
@@ -129,6 +162,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "   ",
       slug: "acme-weddings",
+      plan_id: "EMPRENDEDOR",
     });
 
     expect(response.status).toBe(422);
@@ -140,6 +174,25 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "!!!",
+      plan_id: "EMPRENDEDOR",
+    });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+  });
+
+  it("returns 422 VALIDATION_ERROR for a missing plan_id (STORY-004-001 — no default plan)", async () => {
+    const response = await handler("Bearer a-valid-access-token", { display_name: "Acme" });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+    expect(organizationRepository.created).toHaveLength(0);
+  });
+
+  it("returns 422 VALIDATION_ERROR for an unrecognized plan_id", async () => {
+    const response = await handler("Bearer a-valid-access-token", {
+      display_name: "Acme",
+      plan_id: "ENTERPRISE",
     });
 
     expect(response.status).toBe(422);
@@ -152,6 +205,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "acme",
+      plan_id: "EMPRENDEDOR",
     });
 
     expect(response.status).toBe(409);
@@ -167,6 +221,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "acme",
+      plan_id: "EMPRENDEDOR",
     });
 
     expect(response.status).toBe(500);
@@ -180,6 +235,7 @@ describe("createOrganizationHandler", () => {
   it("ignores any client-supplied organization id — the server always generates its own", async () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
+      plan_id: "EMPRENDEDOR",
       id: "attacker-supplied-id",
     });
 

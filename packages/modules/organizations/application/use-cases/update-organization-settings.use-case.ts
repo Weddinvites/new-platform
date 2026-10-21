@@ -1,4 +1,5 @@
 import { err, ok, type Result } from "@allinvites/kernel";
+import type { VerifySubscriptionActiveService } from "@allinvites/module-billing";
 import type { VerifyOwnerMembershipService } from "@allinvites/module-identity";
 import type { Organization } from "../../domain/entities/organization";
 import type { OrganizationRepository } from "../../domain/repositories/organization-repository";
@@ -10,6 +11,7 @@ export type UpdateOrganizationSettingsError =
   | { readonly type: "NOT_FOUND" }
   | { readonly type: "FORBIDDEN" }
   | { readonly type: "ORGANIZATION_SUSPENDED" }
+  | { readonly type: "SUBSCRIPTION_PAST_DUE" }
   | { readonly type: "UNEXPECTED"; readonly cause: unknown };
 
 export type UpdateOrganizationSettingsResult = {
@@ -29,6 +31,8 @@ export class UpdateOrganizationSettingsUseCase {
     private readonly organizationRepository: OrganizationRepository,
     private readonly verifyOwnerMembership: VerifyOwnerMembershipService,
     private readonly sessionVerifier: SessionVerifier,
+    private readonly verifySubscriptionActive: VerifySubscriptionActiveService = async () =>
+      ok(undefined),
   ) {}
 
   async execute(
@@ -69,6 +73,16 @@ export class UpdateOrganizationSettingsUseCase {
 
     if (organization.isSuspended()) {
       return err({ type: "ORGANIZATION_SUSPENDED" });
+    }
+
+    const subscriptionCheck = await this.verifySubscriptionActive({
+      organizationId: command.organizationId,
+    });
+    if (!subscriptionCheck.ok) {
+      if (subscriptionCheck.error.type === "SUBSCRIPTION_PAST_DUE") {
+        return err({ type: "SUBSCRIPTION_PAST_DUE" });
+      }
+      return err({ type: "UNEXPECTED", cause: subscriptionCheck.error.cause });
     }
 
     const updated = await this.organizationRepository.updateSettings(command.organizationId, {

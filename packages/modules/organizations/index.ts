@@ -4,6 +4,11 @@
 
 import { recordAuditEvent } from "@allinvites/module-audit";
 import {
+  createInitialSubscription,
+  retrieveSubscriptionSummary,
+  verifySubscriptionActive,
+} from "@allinvites/module-billing";
+import {
   createInitialOwnerMembership,
   listActiveOrganizationIds,
   verifyActiveMembership,
@@ -15,6 +20,7 @@ import { ListOrganizationsUseCase } from "./application/use-cases/list-organizat
 import { RetrieveOrganizationUseCase } from "./application/use-cases/retrieve-organization.use-case";
 import { RetrieveOrganizationBrandingUseCase } from "./application/use-cases/retrieve-organization-branding.use-case";
 import { RetrieveOrganizationSettingsUseCase } from "./application/use-cases/retrieve-organization-settings.use-case";
+import { RetrieveSubscriptionUseCase } from "./application/use-cases/retrieve-subscription.use-case";
 import { SetOrganizationStatusUseCase } from "./application/use-cases/set-organization-status.use-case";
 import { UpdateOrganizationUseCase } from "./application/use-cases/update-organization.use-case";
 import { UpdateOrganizationBrandingUseCase } from "./application/use-cases/update-organization-branding.use-case";
@@ -30,6 +36,7 @@ import { createListOrganizationsHandler } from "./presentation/handlers/list-org
 import { createRetrieveOrganizationHandler } from "./presentation/handlers/retrieve-organization.handler";
 import { createRetrieveOrganizationBrandingHandler } from "./presentation/handlers/retrieve-organization-branding.handler";
 import { createRetrieveOrganizationSettingsHandler } from "./presentation/handlers/retrieve-organization-settings.handler";
+import { createRetrieveSubscriptionHandler } from "./presentation/handlers/retrieve-subscription.handler";
 import { createSetOrganizationStatusHandler } from "./presentation/handlers/set-organization-status.handler";
 import { createUpdateOrganizationHandler } from "./presentation/handlers/update-organization.handler";
 import { createUpdateOrganizationBrandingHandler } from "./presentation/handlers/update-organization-branding.handler";
@@ -71,6 +78,11 @@ export type {
 } from "./application/use-cases/retrieve-organization-settings.use-case";
 export { RetrieveOrganizationSettingsUseCase } from "./application/use-cases/retrieve-organization-settings.use-case";
 export type {
+  RetrieveSubscriptionError,
+  RetrieveSubscriptionResult,
+} from "./application/use-cases/retrieve-subscription.use-case";
+export { RetrieveSubscriptionUseCase } from "./application/use-cases/retrieve-subscription.use-case";
+export type {
   UpdateOrganizationError,
   UpdateOrganizationResult,
 } from "./application/use-cases/update-organization.use-case";
@@ -92,6 +104,7 @@ export type {
 export type { OrganizationDto, PaginationDto } from "./contracts/organization.dto";
 export type { OrganizationBrandingDto } from "./contracts/organization-branding.dto";
 export type { OrganizationSettingsDto } from "./contracts/organization-settings.dto";
+export type { OrganizationSubscriptionDto } from "./contracts/organization-subscription.dto";
 export type { Organization } from "./domain/entities/organization";
 export { InvalidSlugError } from "./domain/exceptions/invalid-slug.error";
 export { OrganizationSlugAlreadyExistsError } from "./domain/exceptions/organization-slug-already-exists.error";
@@ -105,6 +118,7 @@ export { createListOrganizationsHandler } from "./presentation/handlers/list-org
 export { createRetrieveOrganizationHandler } from "./presentation/handlers/retrieve-organization.handler";
 export { createRetrieveOrganizationBrandingHandler } from "./presentation/handlers/retrieve-organization-branding.handler";
 export { createRetrieveOrganizationSettingsHandler } from "./presentation/handlers/retrieve-organization-settings.handler";
+export { createRetrieveSubscriptionHandler } from "./presentation/handlers/retrieve-subscription.handler";
 export { createUpdateOrganizationHandler } from "./presentation/handlers/update-organization.handler";
 export { createUpdateOrganizationBrandingHandler } from "./presentation/handlers/update-organization-branding.handler";
 export { createUpdateOrganizationSettingsHandler } from "./presentation/handlers/update-organization-settings.handler";
@@ -131,6 +145,7 @@ export function createOrganizationHandler(
       new CreateOrganizationUseCase(
         new DrizzleOrganizationRepository(),
         createInitialOwnerMembership,
+        createInitialSubscription,
         new SupabaseSessionVerifier(),
       ),
     );
@@ -159,6 +174,7 @@ export function retrieveOrganizationHandler(
         verifyActiveMembership,
         new SupabaseSessionVerifier(),
         platformPrivilegeFor(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -184,6 +200,7 @@ export function updateOrganizationHandler(
         new DrizzleOrganizationRepository(),
         verifyOwnerMembership,
         new SupabaseSessionVerifier(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -211,6 +228,7 @@ export function retrieveOrganizationBrandingHandler(
         new DrizzleOrganizationRepository(),
         verifyOwnerMembership,
         new SupabaseSessionVerifier(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -239,6 +257,7 @@ export function updateOrganizationBrandingHandler(
         new DrizzleOrganizationRepository(),
         verifyOwnerMembership,
         new SupabaseSessionVerifier(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -266,6 +285,7 @@ export function retrieveOrganizationSettingsHandler(
         new DrizzleOrganizationRepository(),
         verifyOwnerMembership,
         new SupabaseSessionVerifier(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -294,6 +314,7 @@ export function updateOrganizationSettingsHandler(
         new DrizzleOrganizationRepository(),
         verifyOwnerMembership,
         new SupabaseSessionVerifier(),
+        verifySubscriptionActive,
       ),
     );
   }
@@ -327,6 +348,35 @@ export function listOrganizationsHandler(
     );
   }
   return cachedListOrganizationsHandler(authorizationHeader, query);
+}
+
+let cachedRetrieveSubscriptionHandler:
+  | ReturnType<typeof createRetrieveSubscriptionHandler>
+  | undefined;
+
+/**
+ * Ready-to-use handler for
+ * GET /api/v1/management/organizations/:organizationId/subscription
+ * (STORY-004-001), pre-wired with Billing's public
+ * RetrieveSubscriptionSummaryService and Identity's public
+ * VerifyActiveMembershipService (ADR-011). Same lazy-instantiation
+ * guarantee as createOrganizationHandler above.
+ */
+export function retrieveSubscriptionHandler(
+  authorizationHeader: string | null | undefined,
+  params: unknown,
+): Promise<HandlerResponse> {
+  if (!cachedRetrieveSubscriptionHandler) {
+    cachedRetrieveSubscriptionHandler = createRetrieveSubscriptionHandler(
+      new RetrieveSubscriptionUseCase(
+        verifyActiveMembership,
+        retrieveSubscriptionSummary,
+        new SupabaseSessionVerifier(),
+        platformPrivilegeFor(),
+      ),
+    );
+  }
+  return cachedRetrieveSubscriptionHandler(authorizationHeader, params);
 }
 
 /**

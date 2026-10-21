@@ -274,4 +274,46 @@ describe("RetrieveOrganizationUseCase", () => {
     if (result.ok) return;
     expect(result.error).toEqual({ type: "NOT_FOUND" });
   });
+
+  it("returns SUBSCRIPTION_PAST_DUE for an ACTIVE member of a Past Due organization (STORY-004-001)", async () => {
+    organizationRepository.organizationsById.set(ORGANIZATION_ID, organization());
+    const { service } = fakeVerifyActiveMembership(ok(undefined));
+    const useCase = new RetrieveOrganizationUseCase(
+      organizationRepository,
+      service,
+      sessionVerifier,
+      async () => false,
+      async () => err({ type: "SUBSCRIPTION_PAST_DUE" }),
+    );
+
+    const result = await useCase.execute("token", ORGANIZATION_ID);
+
+    expect(result).toEqual(err({ type: "SUBSCRIPTION_PAST_DUE" }));
+  });
+
+  it("lets ORGANIZATION_SUSPENDED win when both suspension and Past Due apply (STORY-004-001)", async () => {
+    organizationRepository.organizationsById.set(
+      ORGANIZATION_ID,
+      Organization.fromPersistence({
+        id: ORGANIZATION_ID,
+        organizationType: "PARTNER",
+        slug: Slug.fromPersistence("acme"),
+        displayName: "Acme",
+        createdAt: new Date(),
+        organizationStatus: "SUSPENDED",
+      }),
+    );
+    const { service } = fakeVerifyActiveMembership(ok(undefined));
+    const useCase = new RetrieveOrganizationUseCase(
+      organizationRepository,
+      service,
+      sessionVerifier,
+      async () => false,
+      async () => err({ type: "SUBSCRIPTION_PAST_DUE" }),
+    );
+
+    const result = await useCase.execute("token", ORGANIZATION_ID);
+
+    expect(result).toEqual(err({ type: "ORGANIZATION_SUSPENDED" }));
+  });
 });

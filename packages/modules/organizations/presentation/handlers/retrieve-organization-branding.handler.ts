@@ -59,6 +59,14 @@ export function createRetrieveOrganizationBrandingHandler(
         return errorResponse(403, "ORGANIZATION_SUSPENDED", "This organization is suspended.");
       }
 
+      if (error.type === "SUBSCRIPTION_PAST_DUE") {
+        return errorResponse(
+          403,
+          "SUBSCRIPTION_PAST_DUE",
+          "This organization's subscription is past due.",
+        );
+      }
+
       // error.type === "UNEXPECTED" — never leak cause details to the client.
       return errorResponse(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.");
     }

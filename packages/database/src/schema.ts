@@ -38,6 +38,31 @@ export const organizations = pgTable("organizations", {
 });
 
 /**
+ * STORY-004-001 — one Subscription per Organization (MASTER_SPEC §26.13: "La
+ * Subscription pertenece a una Organization"). `status` is the raw, stored
+ * value only; the *effective* status (accounting for a Trial past its
+ * `trial_ends_at`) is computed by the Billing module's `Subscription` entity
+ * at read time — no scheduled job ever writes PAST_DUE back to this column.
+ */
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  plan: text("plan", {
+    enum: ["EMPRENDEDOR", "PLANNER_ESENCIAL", "PLANNER_PROFESIONAL", "AGENCIA_ILIMITADA"],
+  }).notNull(),
+  status: text("status", {
+    enum: ["TRIAL", "ACTIVE", "PAST_DUE", "SUSPENDED", "CANCELLED", "EXPIRED"],
+  })
+    .notNull()
+    .default("TRIAL"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Application-level user profile, keyed by the Supabase Auth user id
  * (auth.users.id). Credentials themselves live in Supabase Auth, never here
  * (MASTER_SPEC §30; EPIC_002_IDENTITY.md STORY-002-001 acceptance criteria).

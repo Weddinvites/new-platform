@@ -1,8 +1,10 @@
 import type { CreateOrganizationResult } from "../application/use-cases/create-organization.use-case";
+import type { RetrieveSubscriptionResult } from "../application/use-cases/retrieve-subscription.use-case";
 import type { CreatedOrganizationDto } from "../contracts/create-organization.dto";
 import type { OrganizationDto } from "../contracts/organization.dto";
 import type { OrganizationBrandingDto } from "../contracts/organization-branding.dto";
 import type { OrganizationSettingsDto } from "../contracts/organization-settings.dto";
+import type { OrganizationSubscriptionDto } from "../contracts/organization-subscription.dto";
 import type { Organization } from "../domain/entities/organization";
 
 /** STORY-003-002 — Retrieve Organization / List Organizations. Never includes membership details. */
@@ -60,5 +62,26 @@ export function toCreatedOrganizationDto(result: CreateOrganizationResult): Crea
       role: "OWNER",
       status: "ACTIVE",
     },
+    subscription: {
+      id: result.subscription.id,
+      organization_id: result.organization.id,
+      plan: result.subscription.plan,
+      status: result.subscription.status,
+      trial_ends_at: result.subscription.trialEndsAt?.toISOString() ?? null,
+      created_at: result.subscription.createdAt.toISOString(),
+    },
+  };
+}
+
+/** STORY-004-001 — Retrieve Subscription. A standalone DTO, not merged into OrganizationDto. */
+export function toOrganizationSubscriptionDto(
+  result: RetrieveSubscriptionResult,
+): OrganizationSubscriptionDto {
+  return {
+    organization_id: result.organizationId,
+    plan: result.plan,
+    status: result.status,
+    trial_ends_at: result.trialEndsAt?.toISOString() ?? null,
+    created_at: result.createdAt.toISOString(),
   };
 }

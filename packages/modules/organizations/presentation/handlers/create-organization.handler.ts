@@ -53,6 +53,7 @@ export function createCreateOrganizationHandler(useCase: CreateOrganizationUseCa
     const result = await useCase.execute(accessToken, {
       displayName: parsed.data.display_name,
       ...(parsed.data.slug !== undefined ? { slug: parsed.data.slug } : {}),
+      plan: parsed.data.plan_id,
     });
 
     if (!result.ok) {

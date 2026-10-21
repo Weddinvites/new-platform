@@ -145,7 +145,24 @@ importers:
         specifier: ^26.1.2
         version: 26.1.2
 
-  packages/modules/billing: {}
+  packages/modules/billing:
+    dependencies:
+      '@allinvites/database':
+        specifier: workspace:*
+        version: link:../../database
+      '@allinvites/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@allinvites/module-audit':
+        specifier: workspace:*
+        version: link:../audit
+      drizzle-orm:
+        specifier: ^0.44.0
+        version: 0.44.7(postgres@3.4.9)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.1.2
 
   packages/modules/domains: {}
 
@@ -193,6 +210,9 @@ importers:
       '@allinvites/module-audit':
         specifier: workspace:*
         version: link:../audit
+      '@allinvites/module-billing':
+        specifier: workspace:*
+        version: link:../billing
       '@allinvites/module-identity':
         specifier: workspace:*
         version: link:../identity

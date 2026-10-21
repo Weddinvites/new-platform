@@ -1,5 +1,10 @@
 import { type Database, getDatabase, isPostgresErrorCode } from "@allinvites/database";
 import { err, ok, type Result } from "@allinvites/kernel";
+import type {
+  CreateInitialSubscriptionService,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@allinvites/module-billing";
 import type { CreateInitialOwnerMembershipService } from "@allinvites/module-identity";
 import { Organization } from "../../domain/entities/organization";
 import { InvalidSlugError } from "../../domain/exceptions/invalid-slug.error";
@@ -18,6 +23,13 @@ export type CreateOrganizationError =
 export type CreateOrganizationResult = {
   readonly organization: Organization;
   readonly membershipId: string;
+  readonly subscription: {
+    readonly id: string;
+    readonly plan: SubscriptionPlan;
+    readonly status: SubscriptionStatus;
+    readonly trialEndsAt: Date | null;
+    readonly createdAt: Date;
+  };
 };
 
 const SLUG_UNIQUE_VIOLATION = "23505";
@@ -32,11 +44,20 @@ const SLUG_UNIQUE_VIOLATION = "23505";
  * asynchronous consumer — the transaction mechanism is the existing shared
  * `@allinvites/database` primitive, opened here and passed through to the
  * Identity contract.
+ *
+ * STORY-004-001 — the same transaction also creates the Organization's
+ * initial Subscription (always `TRIAL`, no payment check), via Billing's
+ * public CreateInitialSubscriptionService (ADR-011: Organizations never
+ * touches Subscription domain internals or the `subscriptions` table
+ * directly). A failure in either cross-module call rolls back the whole
+ * transaction — no Organization is ever observed without both its OWNER
+ * membership and its Subscription.
  */
 export class CreateOrganizationUseCase {
   constructor(
     private readonly organizationRepository: OrganizationRepository,
     private readonly createInitialOwnerMembership: CreateInitialOwnerMembershipService,
+    private readonly createInitialSubscription: CreateInitialSubscriptionService,
     private readonly sessionVerifier: SessionVerifier,
     private readonly db: Database = getDatabase(),
   ) {}
@@ -70,7 +91,7 @@ export class CreateOrganizationUseCase {
     });
 
     let result: CreateOrganizationResult | undefined;
-    let membershipFailureCause: unknown;
+    let crossModuleFailureCause: unknown;
 
     try {
       await this.db.transaction(async (tx) => {
@@ -82,18 +103,38 @@ export class CreateOrganizationUseCase {
         );
 
         if (!membershipResult.ok) {
-          membershipFailureCause =
+          crossModuleFailureCause =
             membershipResult.error.type === "USER_NOT_FOUND"
               ? new Error("Authenticated caller has no matching User profile.")
               : membershipResult.error.cause;
           throw new Error("CREATE_INITIAL_OWNER_MEMBERSHIP_FAILED");
         }
 
-        result = { organization, membershipId: membershipResult.value.membershipId };
+        const subscriptionResult = await this.createInitialSubscription(
+          { organizationId: organization.id, plan: command.plan, userId: caller.value.userId },
+          tx,
+        );
+
+        if (!subscriptionResult.ok) {
+          crossModuleFailureCause = subscriptionResult.error.cause;
+          throw new Error("CREATE_INITIAL_SUBSCRIPTION_FAILED");
+        }
+
+        result = {
+          organization,
+          membershipId: membershipResult.value.membershipId,
+          subscription: {
+            id: subscriptionResult.value.subscriptionId,
+            plan: subscriptionResult.value.plan,
+            status: subscriptionResult.value.status,
+            trialEndsAt: subscriptionResult.value.trialEndsAt,
+            createdAt: subscriptionResult.value.createdAt,
+          },
+        };
       });
     } catch (error) {
-      if (membershipFailureCause !== undefined) {
-        return err({ type: "UNEXPECTED", cause: membershipFailureCause });
+      if (crossModuleFailureCause !== undefined) {
+        return err({ type: "UNEXPECTED", cause: crossModuleFailureCause });
       }
       if (isPostgresErrorCode(error, SLUG_UNIQUE_VIOLATION)) {
         return err(new OrganizationSlugAlreadyExistsError());

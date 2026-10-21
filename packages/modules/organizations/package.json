@@ -17,6 +17,7 @@
     "@allinvites/database": "workspace:*",
     "@allinvites/kernel": "workspace:*",
     "@allinvites/module-audit": "workspace:*",
+    "@allinvites/module-billing": "workspace:*",
     "@allinvites/module-identity": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "zod": "^4.1.0"

@@ -226,4 +226,27 @@ describe("retrieveOrganizationBrandingHandler", () => {
       error: { code: "RESOURCE_NOT_FOUND" },
     });
   });
+
+  it("returns 403 SUBSCRIPTION_PAST_DUE for an OWNER of a Past Due organization (STORY-004-001)", async () => {
+    const useCase = new RetrieveOrganizationBrandingUseCase(
+      organizationRepository,
+      fakeVerifyOwnerMembership(ok(undefined)),
+      sessionVerifier,
+      async () => err({ type: "SUBSCRIPTION_PAST_DUE" }),
+    );
+    const handler = createRetrieveOrganizationBrandingHandler(useCase);
+
+    const response = await handler("Bearer a-valid-access-token", {
+      organizationId: ORGANIZATION_ID,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: "SUBSCRIPTION_PAST_DUE",
+        message: "This organization's subscription is past due.",
+      },
+    });
+  });
 });

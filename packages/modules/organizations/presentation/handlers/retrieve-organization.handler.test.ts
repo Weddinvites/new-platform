@@ -191,4 +191,28 @@ describe("retrieveOrganizationHandler", () => {
       error: { code: "ORGANIZATION_SUSPENDED", message: "This organization is suspended." },
     });
   });
+
+  it("returns 403 SUBSCRIPTION_PAST_DUE for an ACTIVE member of a Past Due organization (STORY-004-001)", async () => {
+    const useCase = new RetrieveOrganizationUseCase(
+      organizationRepository,
+      fakeVerifyActiveMembership(ok(undefined)),
+      sessionVerifier,
+      async () => false,
+      async () => err({ type: "SUBSCRIPTION_PAST_DUE" }),
+    );
+    const handler = createRetrieveOrganizationHandler(useCase);
+
+    const response = await handler("Bearer a-valid-access-token", {
+      organizationId: ORGANIZATION_ID,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: "SUBSCRIPTION_PAST_DUE",
+        message: "This organization's subscription is past due.",
+      },
+    });
+  });
 });

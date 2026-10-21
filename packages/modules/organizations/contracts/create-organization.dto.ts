@@ -6,6 +6,7 @@
 export type CreateOrganizationRequestDto = {
   display_name: string;
   slug?: string;
+  plan_id: "EMPRENDEDOR" | "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
 };
 
 export type CreatedOrganizationDto = {
@@ -19,5 +20,14 @@ export type CreatedOrganizationDto = {
     organization_id: string;
     role: "OWNER";
     status: "ACTIVE";
+  };
+  /** STORY-004-001 — the Organization's initial Subscription, created atomically alongside it. */
+  subscription: {
+    id: string;
+    organization_id: string;
+    plan: "EMPRENDEDOR" | "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
+    status: string;
+    trial_ends_at: string | null;
+    created_at: string;
   };
 };
