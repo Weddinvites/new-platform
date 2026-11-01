@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const SUBSCRIPTION_PLANS = [
-  "EMPRENDEDOR",
   "PLANNER_ESENCIAL",
   "PLANNER_PROFESIONAL",
   "AGENCIA_ILIMITADA",
@@ -19,7 +18,9 @@ const SUBSCRIPTION_PLANS = [
  * called it.
  *
  * STORY-004-001 — plan_id is required: the plan is chosen by the purchaser
- * at signup, there is no default. One of the four MASTER_SPEC §16.3 plans.
+ * at signup, there is no default. One of the three B2B/Agency MASTER_SPEC
+ * §16.3 plans — "Emprendedor" is deliberately excluded, see
+ * `SubscriptionPlan` in `@allinvites/module-billing`.
  */
 export const createOrganizationRequestSchema = z.object({
   display_name: z.string().trim().min(1, "display_name is required"),

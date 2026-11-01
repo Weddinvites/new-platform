@@ -7,7 +7,7 @@
  */
 export type OrganizationSubscriptionDto = {
   organization_id: string;
-  plan: "EMPRENDEDOR" | "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
+  plan: "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
   status: string;
   trial_ends_at: string | null;
   created_at: string;

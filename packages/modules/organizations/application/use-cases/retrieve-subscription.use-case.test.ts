@@ -19,7 +19,7 @@ const ORGANIZATION_ID = "22222222-2222-2222-2222-222222222222";
 const SUMMARY: SubscriptionSummary = {
   id: "sub-1",
   organizationId: ORGANIZATION_ID,
-  plan: "EMPRENDEDOR",
+  plan: "PLANNER_ESENCIAL",
   status: "TRIAL",
   trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -64,7 +64,7 @@ describe("RetrieveSubscriptionUseCase", () => {
     if (!result.ok) return;
     expect(result.value).toEqual({
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: SUMMARY.trialEndsAt,
       createdAt: SUMMARY.createdAt,

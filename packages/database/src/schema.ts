@@ -51,7 +51,7 @@ export const subscriptions = pgTable("subscriptions", {
     .unique()
     .references(() => organizations.id, { onDelete: "cascade" }),
   plan: text("plan", {
-    enum: ["EMPRENDEDOR", "PLANNER_ESENCIAL", "PLANNER_PROFESIONAL", "AGENCIA_ILIMITADA"],
+    enum: ["PLANNER_ESENCIAL", "PLANNER_PROFESIONAL", "AGENCIA_ILIMITADA"],
   }).notNull(),
   status: text("status", {
     enum: ["TRIAL", "ACTIVE", "PAST_DUE", "SUSPENDED", "CANCELLED", "EXPIRED"],

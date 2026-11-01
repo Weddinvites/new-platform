@@ -7,12 +7,12 @@ describe("Subscription", () => {
     const subscription = Subscription.create({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
     const after = new Date();
 
     expect(subscription.status).toBe("TRIAL");
-    expect(subscription.plan).toBe("EMPRENDEDOR");
+    expect(subscription.plan).toBe("PLANNER_ESENCIAL");
     expect(subscription.trialEndsAt).not.toBeNull();
     const trialEndsAt = subscription.trialEndsAt as Date;
     const diffMs = trialEndsAt.getTime() - subscription.createdAt.getTime();
@@ -25,7 +25,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -39,7 +39,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -56,7 +56,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -69,7 +69,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "ACTIVE",
       trialEndsAt: new Date("2026-01-01T00:00:00.000Z"),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -83,7 +83,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "PAST_DUE",
       trialEndsAt: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -96,7 +96,7 @@ describe("Subscription", () => {
     const subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: "org-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),

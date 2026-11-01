@@ -1,6 +1,6 @@
 # EPIC 004 — Billing & Subscription
 
-**Status:** Planned — contract audit in progress; no Story is approved for implementation yet.
+**Status:** In Progress — STORY-004-001 closed (2026-10-22); the remaining Stories (§5) are still just a proposed decomposition, pending product decisions and their own contract audits.
 **Module:** `billing`
 **Priority:** High — "Validate License" / plan-based feature availability (MASTER_SPEC §16.3) gates capabilities consumed by other modules (White Label, Custom Domain, API, AI Assistant); the payment-gateway integration itself is explicitly non-blocking for MVP (MASTER_SPEC §39.1).
 **Phase:** MVP
@@ -77,11 +77,11 @@ MASTER_SPEC §28.2 ("Organizations Module") already documents a one-way event de
 
 # 5. Stories
 
-STORY-004-001's contract is decided (below), through a product-decision pass with you — pending implementation authorization. The remaining Stories are still just a proposed decomposition: no contract audit or product approval yet.
+STORY-004-001 is implemented and closed (below). The remaining Stories are still just a proposed decomposition: no contract audit or product approval yet.
 
 ## STORY-004-001 — Subscription Creation at Purchase, Retrieve, and Trial Enforcement
 
-**Status:** Contract decided — pending implementation authorization.
+**Status:** Closed — Implemented (2026-10-22). See "Implementation Summary" for what was built and verified.
 
 ### Objective
 
@@ -91,7 +91,7 @@ Give every PARTNER Organization a `Subscription` the moment it's purchased/creat
 
 - Extend `POST /api/v1/management/organizations` (STORY-003-001) to require `plan_id` and atomically create a `Subscription` row alongside the `Organization` and its OWNER `OrganizationMembership`, in the same transaction.
 - New `GET /api/v1/management/organizations/:organizationId/subscription` (Retrieve Subscription).
-- The MASTER_SPEC §16.3 plan catalog as a fixed, closed enum: `EMPRENDEDOR`, `PLANNER_ESENCIAL`, `PLANNER_PROFESIONAL`, `AGENCIA_ILIMITADA`. No pricing, no feature-flag enforcement — that's STORY-004-005 "Validate License."
+- The three B2B/Agency recurring-subscription tiers from MASTER_SPEC §16.3 as a fixed, closed enum: `PLANNER_ESENCIAL`, `PLANNER_PROFESIONAL`, `AGENCIA_ILIMITADA`. No pricing, no feature-flag enforcement — that's STORY-004-005 "Validate License." (`EMPRENDEDOR` is deliberately excluded — see "Post-closure correction" in Implementation Summary below.)
 - A computed Trial-expiry check and a new Billing-owned cross-module service (`verifySubscriptionActive`) that STORY-003-002/003/005/006's use cases call, returning `403 SUBSCRIPTION_PAST_DUE`.
 - Audit logging of Subscription creation (ADR-007; Architecture.md "Auditability" lists "Subscription updates"), via the existing Audit module, same mechanism STORY-003-004 used.
 
@@ -124,7 +124,7 @@ Give every PARTNER Organization a `Subscription` the moment it's purchased/creat
 {
   "display_name": "string, required",
   "slug": "string, optional",
-  "plan_id": "EMPRENDEDOR | PLANNER_ESENCIAL | PLANNER_PROFESIONAL | AGENCIA_ILIMITADA, required"
+  "plan_id": "PLANNER_ESENCIAL | PLANNER_PROFESIONAL | AGENCIA_ILIMITADA, required"
 }
 ```
 
@@ -137,7 +137,7 @@ Create Organization's existing response (`organization`, `membership`) gains a `
   "success": true,
   "data": {
     "organization_id": "uuid",
-    "plan": "EMPRENDEDOR",
+    "plan": "PLANNER_ESENCIAL",
     "status": "TRIAL",
     "trial_ends_at": "ISO-8601 timestamp | null",
     "created_at": "ISO-8601 timestamp"
@@ -191,6 +191,34 @@ Create Organization's existing response (`organization`, `membership`) gains a `
 ### Explicit Implementation Boundary
 
 This Story implements exactly: extending Create Organization's validation/transaction to also create a Subscription → the new Retrieve Subscription endpoint → the computed Trial-expiry check → wiring that check into the five existing enforcement points. It does not implement Change Plan, Cancel, Invoices, Payment History, Validate License, any payment processing, or the B2C one-time-purchase product.
+
+### Implementation Summary
+
+STORY-004-001 is implemented in full, matching the approved contract above:
+
+- **New `billing` module** (`packages/modules/billing`, built out from the pre-existing inert ADR-002 placeholder scaffold): `Subscription` domain entity (`effectiveStatus(now)`, `isPastDue(now)`, `create`, `fromPersistence`), `SubscriptionRepository` port, `DrizzleSubscriptionRepository`, and three public Application Services — `createInitialSubscription`, `verifySubscriptionActive`, `retrieveSubscriptionSummary` — exported from `index.ts` as ready-to-use, lazily-wired functions (infrastructure instantiated on first call, never at import time — required for the Next.js production build to succeed, since route modules are evaluated at build time without real env vars present).
+- **New `subscriptions` table** (`packages/database/src/schema.ts`, migration `supabase/migrations/20261020000000_subscriptions.sql`, applied live): `id`, `organization_id` (unique, FK → organizations, cascade), `plan` (enum, 4 values), `status` (enum, 6 values, default `TRIAL`), `trial_ends_at` (nullable), `created_at`.
+- **Create Organization extended** (`packages/modules/organizations`): `plan_id` is now a required field; the use case creates Organization, OWNER Membership, and Subscription atomically in one transaction — a Billing-service failure rolls back the whole transaction, same rollback discipline as the existing Identity-contract failure case.
+- **New Retrieve Subscription endpoint** (`GET /api/v1/management/organizations/:organizationId/subscription`): any ACTIVE member (any role) or platform-privileged caller; `RESOURCE_NOT_FOUND` (404) otherwise, byte-identical to Retrieve Organization's concealment rule.
+- **Trial enforcement wired into five existing use cases** (Retrieve/Update Organization, Retrieve/Update Branding, Retrieve/Update Settings): each gained an optional `verifySubscriptionActive` constructor param, defaulting to a safe no-op (`async () => ok(undefined)`) so all pre-existing test call sites kept compiling unchanged — mirroring the existing `isPlatformPrivileged` optional-default precedent. Checked immediately after the existing `ORGANIZATION_SUSPENDED` check (suspension wins if both apply); returns `403 SUBSCRIPTION_PAST_DUE`. Suspend/Activate Organization and Retrieve Subscription itself are excluded, per contract.
+- **Audit logging**: Subscription creation records one `SUBSCRIPTION_CREATED` audit event via the existing Audit module (`recordAuditEvent`), inside the same transaction; an audit-write failure throws to roll back the caller's transaction.
+- **ADR-011 boundary held**: Organizations never imports Billing's `SubscriptionRepository`, domain internals, or the `subscriptions` table directly — only the two public services. Identity gained no dependency on Billing; login/session resolution is untouched.
+- **Post-closure correction (2026-10-30, during STORY-004-005's contract audit)**: `plan_id`/`SubscriptionPlan` originally accepted four values, including `EMPRENDEDOR`. MASTER_SPEC §16.2 "Modelo de Negocio" clarified that Emprendedor is the **B2C** one-time per-event license product ("Pago por evento. Una licencia por evento.") — a distinct product with no Organization of its own (see §1/§3) — not a fourth **B2B** recurring-subscription tier. It was never a valid choice for Create Organization, a B2B-only action. Corrected to the three real B2B tiers (`PLANNER_ESENCIAL`, `PLANNER_PROFESIONAL`, `AGENCIA_ILIMITADA`) everywhere: the validator, the domain `SubscriptionPlan` type, both DTOs, the `subscriptions.plan` database check constraint (migration `20261030000000_subscriptions_drop_emprendedor_plan.sql`), and every affected test. No other part of STORY-004-001's contract changed.
+
+### Validation Results
+
+- `pnpm build`: 21/21 tasks succeeded (dashboard build includes the new subscription route).
+- `pnpm typecheck`, `pnpm lint`: all packages clean.
+- `pnpm test`: Billing 20/20 pass; Organizations 294/294 pass; Identity 294/294 pass, unchanged. (Original closure: Billing 20/20 new; Organizations 293/293. The post-closure correction below added one validator test and one handler test rejecting `EMPRENDEDOR`, replacing the one `it.each` case that previously accepted it — net +1, now 294.)
+- First migration (`20261020000000_subscriptions.sql`) applied live to the Supabase `weddinvites` project via MCP `apply_migration` and verified at the time: correct columns/constraints/FK, RLS enabled (project-wide auto-enable), `get_advisors` clean beyond the two already-accepted pre-existing findings.
+- Second migration (`20261030000000_subscriptions_drop_emprendedor_plan.sql`, the post-closure correction's constraint change) applied live to the Supabase `weddinvites` project via MCP `apply_migration` on 2026-11-01 (after a transient Supabase MCP outage delayed it) and verified: no live `subscriptions` row had `plan = 'EMPRENDEDOR'` before the change, `pg_get_constraintdef` confirms the new 3-value constraint, `get_advisors` shows no new findings beyond the two already-accepted pre-existing ones.
+- Committed as `2ea29d7` ("feat(billing): implement Subscription creation, retrieve, and Trial enforcement (STORY-004-001)") and pushed to `origin/main`. The post-closure correction's migration is applied live; the code/doc changes are not yet committed.
+
+### Accepted Non-Blocking Gaps
+
+- No database-backed integration test for `DrizzleSubscriptionRepository` — the same pre-existing, codebase-wide gap already accepted for every prior Story (no integration-test infrastructure exists anywhere in this repository).
+
+EPIC-002, EPIC-003 (all six Stories), and this Story's own out-of-scope items remain frozen and behaviorally unchanged — verified by all 294 pre-existing Identity tests and all 260 pre-existing Organizations tests passing with no assertion changes.
 
 ---
 

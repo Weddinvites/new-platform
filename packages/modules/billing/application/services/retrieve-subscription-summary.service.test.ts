@@ -43,7 +43,7 @@ describe("createRetrieveSubscriptionSummaryService", () => {
     repository.subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 31),

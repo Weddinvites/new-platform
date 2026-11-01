@@ -5,7 +5,7 @@ describe("createOrganizationRequestSchema", () => {
   it("accepts a valid payload without a slug", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "Acme Weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(true);
@@ -15,14 +15,14 @@ describe("createOrganizationRequestSchema", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "Acme Weddings",
       slug: "acme-weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(true);
   });
 
   it("rejects a payload missing display_name", () => {
-    const result = createOrganizationRequestSchema.safeParse({ plan_id: "EMPRENDEDOR" });
+    const result = createOrganizationRequestSchema.safeParse({ plan_id: "PLANNER_ESENCIAL" });
 
     expect(result.success).toBe(false);
   });
@@ -30,7 +30,7 @@ describe("createOrganizationRequestSchema", () => {
   it("rejects an empty-string display_name", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(false);
@@ -39,7 +39,7 @@ describe("createOrganizationRequestSchema", () => {
   it("rejects a whitespace-only display_name", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "   ",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(false);
@@ -48,7 +48,7 @@ describe("createOrganizationRequestSchema", () => {
   it("trims a padded display_name", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "  Acme Weddings  ",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(true);
@@ -60,7 +60,7 @@ describe("createOrganizationRequestSchema", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "   ",
       slug: "acme-weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(false);
@@ -70,7 +70,7 @@ describe("createOrganizationRequestSchema", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "Acme",
       slug: "",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(result.success).toBe(false);
@@ -97,17 +97,24 @@ describe("createOrganizationRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it.each([
-    ["EMPRENDEDOR"],
-    ["PLANNER_ESENCIAL"],
-    ["PLANNER_PROFESIONAL"],
-    ["AGENCIA_ILIMITADA"],
-  ] as const)("accepts plan_id %s", (planId) => {
+  it("rejects plan_id EMPRENDEDOR (MASTER_SPEC §16.2 B2C per-event license, not a selectable B2B Organization plan)", () => {
     const result = createOrganizationRequestSchema.safeParse({
       display_name: "Acme",
-      plan_id: planId,
+      plan_id: "EMPRENDEDOR",
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
+
+  it.each([["PLANNER_ESENCIAL"], ["PLANNER_PROFESIONAL"], ["AGENCIA_ILIMITADA"]] as const)(
+    "accepts plan_id %s",
+    (planId) => {
+      const result = createOrganizationRequestSchema.safeParse({
+        display_name: "Acme",
+        plan_id: planId,
+      });
+
+      expect(result.success).toBe(true);
+    },
+  );
 });

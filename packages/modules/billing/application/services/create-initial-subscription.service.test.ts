@@ -41,13 +41,13 @@ describe("createCreateInitialSubscriptionService", () => {
     const service = createCreateInitialSubscriptionService(repository, recordAuditEvent);
 
     const result = await service(
-      { organizationId: ORGANIZATION_ID, plan: "EMPRENDEDOR", userId: CALLER_ID },
+      { organizationId: ORGANIZATION_ID, plan: "PLANNER_ESENCIAL", userId: CALLER_ID },
       FAKE_TX,
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.plan).toBe("EMPRENDEDOR");
+    expect(result.value.plan).toBe("PLANNER_ESENCIAL");
     expect(result.value.status).toBe("TRIAL");
     expect(repository.created).toHaveLength(1);
     expect(repository.created[0].organizationId).toBe(ORGANIZATION_ID);
@@ -69,7 +69,7 @@ describe("createCreateInitialSubscriptionService", () => {
     const service = createCreateInitialSubscriptionService(repository, recordAuditEvent);
 
     const result = await service(
-      { organizationId: ORGANIZATION_ID, plan: "EMPRENDEDOR", userId: CALLER_ID },
+      { organizationId: ORGANIZATION_ID, plan: "PLANNER_ESENCIAL", userId: CALLER_ID },
       FAKE_TX,
     );
 
@@ -87,7 +87,10 @@ describe("createCreateInitialSubscriptionService", () => {
     const service = createCreateInitialSubscriptionService(repository, recordAuditEvent);
 
     await expect(
-      service({ organizationId: ORGANIZATION_ID, plan: "EMPRENDEDOR", userId: CALLER_ID }, FAKE_TX),
+      service(
+        { organizationId: ORGANIZATION_ID, plan: "PLANNER_ESENCIAL", userId: CALLER_ID },
+        FAKE_TX,
+      ),
     ).rejects.toThrow("Audit record could not be written.");
   });
 });

@@ -23,7 +23,7 @@ describe("createVerifySubscriptionActiveService", () => {
     repository.subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
       createdAt: new Date(),
@@ -40,7 +40,7 @@ describe("createVerifySubscriptionActiveService", () => {
     repository.subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "ACTIVE",
       trialEndsAt: null,
       createdAt: new Date(),
@@ -57,7 +57,7 @@ describe("createVerifySubscriptionActiveService", () => {
     repository.subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 31),
@@ -76,7 +76,7 @@ describe("createVerifySubscriptionActiveService", () => {
     repository.subscription = Subscription.fromPersistence({
       id: "sub-1",
       organizationId: ORGANIZATION_ID,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "PAST_DUE",
       trialEndsAt: null,
       createdAt: new Date(),

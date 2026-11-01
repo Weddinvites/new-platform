@@ -28,7 +28,7 @@ const FAKE_TX = {} as Transaction;
 
 const SUBSCRIPTION_SUCCESS: CreateInitialSubscriptionResult = {
   subscriptionId: "subscription-1",
-  plan: "EMPRENDEDOR",
+  plan: "PLANNER_ESENCIAL",
   status: "TRIAL",
   trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -128,7 +128,7 @@ describe("CreateOrganizationUseCase", () => {
 
     const result = await useCase.execute("token", {
       displayName: "Acme Weddings",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(true);
@@ -138,7 +138,7 @@ describe("CreateOrganizationUseCase", () => {
     expect(result.value.membershipId).toBe("membership-1");
     expect(result.value.subscription).toEqual({
       id: "subscription-1",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       status: "TRIAL",
       trialEndsAt: SUBSCRIPTION_SUCCESS.trialEndsAt,
       createdAt: SUBSCRIPTION_SUCCESS.createdAt,
@@ -148,7 +148,7 @@ describe("CreateOrganizationUseCase", () => {
     expect(subscriptionCalls).toHaveLength(1);
     expect(subscriptionCalls[0].params).toEqual({
       organizationId: result.value.organization.id,
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
       userId: CALLER_ID,
     });
     expect(subscriptionCalls[0].tx).toBe(FAKE_TX);
@@ -160,7 +160,7 @@ describe("CreateOrganizationUseCase", () => {
 
     const result = await useCase.execute("token", {
       displayName: "Acme Weddings & Co.",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(true);
@@ -175,7 +175,7 @@ describe("CreateOrganizationUseCase", () => {
     const result = await useCase.execute("token", {
       displayName: "Acme Weddings",
       slug: "  Custom Slug!! ",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(true);
@@ -190,7 +190,7 @@ describe("CreateOrganizationUseCase", () => {
     const result = await useCase.execute("token", {
       displayName: "Acme",
       slug: "!!!",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(false);
@@ -209,7 +209,7 @@ describe("CreateOrganizationUseCase", () => {
     const result = await useCase.execute("token", {
       displayName: "Acme",
       slug: "acme",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(false);
@@ -224,7 +224,10 @@ describe("CreateOrganizationUseCase", () => {
       fakeCreateInitialSubscription();
     const useCase = buildUseCase(service, subscriptionService);
 
-    const result = await useCase.execute("token", { displayName: "Acme", plan: "EMPRENDEDOR" });
+    const result = await useCase.execute("token", {
+      displayName: "Acme",
+      plan: "PLANNER_ESENCIAL",
+    });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -238,7 +241,10 @@ describe("CreateOrganizationUseCase", () => {
     );
     const useCase = buildUseCase(service);
 
-    const result = await useCase.execute("token", { displayName: "Acme", plan: "EMPRENDEDOR" });
+    const result = await useCase.execute("token", {
+      displayName: "Acme",
+      plan: "PLANNER_ESENCIAL",
+    });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -252,7 +258,10 @@ describe("CreateOrganizationUseCase", () => {
     );
     const useCase = buildUseCase(service, subscriptionService);
 
-    const result = await useCase.execute("token", { displayName: "Acme", plan: "EMPRENDEDOR" });
+    const result = await useCase.execute("token", {
+      displayName: "Acme",
+      plan: "PLANNER_ESENCIAL",
+    });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -268,7 +277,7 @@ describe("CreateOrganizationUseCase", () => {
 
     const result = await useCase.execute("bad-token", {
       displayName: "Acme",
-      plan: "EMPRENDEDOR",
+      plan: "PLANNER_ESENCIAL",
     });
 
     expect(result.ok).toBe(false);
@@ -283,7 +292,10 @@ describe("CreateOrganizationUseCase", () => {
     const { service } = fakeCreateInitialOwnerMembership(ok({ membershipId: "membership-1" }));
     const useCase = buildUseCase(service);
 
-    const result = await useCase.execute("token", { displayName: "Acme", plan: "EMPRENDEDOR" });
+    const result = await useCase.execute("token", {
+      displayName: "Acme",
+      plan: "PLANNER_ESENCIAL",
+    });
 
     expect(result.ok).toBe(false);
     if (result.ok) return;

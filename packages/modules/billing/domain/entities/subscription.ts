@@ -1,8 +1,12 @@
-export type SubscriptionPlan =
-  | "EMPRENDEDOR"
-  | "PLANNER_ESENCIAL"
-  | "PLANNER_PROFESIONAL"
-  | "AGENCIA_ILIMITADA";
+/**
+ * The three B2B/Agency recurring-subscription tiers (MASTER_SPEC §16.2 "Modelo
+ * B2B", §16.3). "Emprendedor" is deliberately not a value here — MASTER_SPEC
+ * §16.2 "Modelo B2C" / §16.3 defines it as "Modelo de pago por evento," a
+ * one-time per-event license for a B2C Event Owner (no Organization, no
+ * recurring Subscription) — a distinct future Story, out of this Epic's scope
+ * (see EPIC_004_BILLING.md §1/§3).
+ */
+export type SubscriptionPlan = "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
 
 export type SubscriptionStatus =
   | "TRIAL"

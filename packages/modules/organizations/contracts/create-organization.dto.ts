@@ -6,7 +6,7 @@
 export type CreateOrganizationRequestDto = {
   display_name: string;
   slug?: string;
-  plan_id: "EMPRENDEDOR" | "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
+  plan_id: "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
 };
 
 export type CreatedOrganizationDto = {
@@ -25,7 +25,7 @@ export type CreatedOrganizationDto = {
   subscription: {
     id: string;
     organization_id: string;
-    plan: "EMPRENDEDOR" | "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
+    plan: "PLANNER_ESENCIAL" | "PLANNER_PROFESIONAL" | "AGENCIA_ILIMITADA";
     status: string;
     trial_ends_at: string | null;
     created_at: string;

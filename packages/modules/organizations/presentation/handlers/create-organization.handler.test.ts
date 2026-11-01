@@ -25,7 +25,7 @@ const CALLER_ID = "11111111-1111-1111-1111-111111111111";
 
 const SUBSCRIPTION_SUCCESS: CreateInitialSubscriptionResult = {
   subscriptionId: "subscription-1",
-  plan: "EMPRENDEDOR",
+  plan: "PLANNER_ESENCIAL",
   status: "TRIAL",
   trialEndsAt: new Date("2026-02-01T00:00:00.000Z"),
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -96,7 +96,7 @@ describe("createOrganizationHandler", () => {
   it("returns 201 with the created organization, its OWNER membership, and its initial Subscription on success", async () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme Weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(201);
@@ -107,13 +107,16 @@ describe("createOrganizationHandler", () => {
         slug: "acme-weddings",
         display_name: "Acme Weddings",
         membership: { role: "OWNER", status: "ACTIVE" },
-        subscription: { plan: "EMPRENDEDOR", status: "TRIAL" },
+        subscription: { plan: "PLANNER_ESENCIAL", status: "TRIAL" },
       },
     });
   });
 
   it("returns 401 UNAUTHORIZED when no Authorization header is present", async () => {
-    const response = await handler(null, { display_name: "Acme Weddings", plan_id: "EMPRENDEDOR" });
+    const response = await handler(null, {
+      display_name: "Acme Weddings",
+      plan_id: "PLANNER_ESENCIAL",
+    });
 
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({ success: false, error: { code: "UNAUTHORIZED" } });
@@ -123,7 +126,7 @@ describe("createOrganizationHandler", () => {
   it("returns 401 UNAUTHORIZED for a malformed Authorization header", async () => {
     const response = await handler("not-a-bearer-token", {
       display_name: "Acme Weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(401);
@@ -134,7 +137,7 @@ describe("createOrganizationHandler", () => {
 
     const response = await handler("Bearer an-expired-token", {
       display_name: "Acme Weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(401);
@@ -142,7 +145,7 @@ describe("createOrganizationHandler", () => {
   });
 
   it("returns 422 VALIDATION_ERROR for a missing display_name", async () => {
-    const response = await handler("Bearer a-valid-access-token", { plan_id: "EMPRENDEDOR" });
+    const response = await handler("Bearer a-valid-access-token", { plan_id: "PLANNER_ESENCIAL" });
 
     expect(response.status).toBe(422);
     expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
@@ -151,7 +154,7 @@ describe("createOrganizationHandler", () => {
   it("returns 422 VALIDATION_ERROR for an empty-string display_name", async () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(422);
@@ -162,7 +165,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "   ",
       slug: "acme-weddings",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(422);
@@ -174,7 +177,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "!!!",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(422);
@@ -199,13 +202,24 @@ describe("createOrganizationHandler", () => {
     expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
   });
 
+  it("returns 422 VALIDATION_ERROR for plan_id EMPRENDEDOR (MASTER_SPEC §16.2 B2C per-event license, not a selectable B2B Organization plan)", async () => {
+    const response = await handler("Bearer a-valid-access-token", {
+      display_name: "Acme",
+      plan_id: "EMPRENDEDOR",
+    });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+    expect(organizationRepository.created).toHaveLength(0);
+  });
+
   it("returns 409 ORGANIZATION_SLUG_ALREADY_EXISTS on a slug collision", async () => {
     organizationRepository.failure = { code: "23505", message: "duplicate key" };
 
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "acme",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(409);
@@ -221,7 +235,7 @@ describe("createOrganizationHandler", () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
       slug: "acme",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
     });
 
     expect(response.status).toBe(500);
@@ -235,7 +249,7 @@ describe("createOrganizationHandler", () => {
   it("ignores any client-supplied organization id — the server always generates its own", async () => {
     const response = await handler("Bearer a-valid-access-token", {
       display_name: "Acme",
-      plan_id: "EMPRENDEDOR",
+      plan_id: "PLANNER_ESENCIAL",
       id: "attacker-supplied-id",
     });
 
